@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Squirrel Park</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0f1a08;font-family:'Segoe UI',system-ui,sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+#wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;width:100%;padding:6px;gap:4px}
+#hud{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:750px;padding:4px 10px;font-size:14px;gap:8px;flex-wrap:wrap}
+#hud>div{display:flex;align-items:center;gap:6px}
+.hud-label{color:#8bba6f;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+#score-val{color:#ffd700;font-weight:bold;font-size:18px;text-shadow:0 0 8px rgba(255,215,0,0.5);min-width:50px}
+#level-val{color:#7fdbff;font-weight:bold;font-size:16px}
+#lives-val{color:#ff4757;font-size:18px;letter-spacing:2px}
+#combo-display{color:#fff;font-weight:bold;font-size:16px;opacity:0;transition:opacity 0.3s}
+.hud-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#ccc;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;transition:all 0.2s}
+.hud-btn:hover{background:rgba(255,255,255,0.15);color:#fff}
+#canvas-wrap{position:relative;width:100%;max-width:750px;flex-shrink:1}
+canvas{display:block;width:100%;border-radius:8px;box-shadow:0 0 30px rgba(0,0,0,0.6),0 0 60px rgba(34,80,20,0.3)}
+#treacle-overlay{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;pointer-events:none;transition:background 0.5s}
+#msg-bar{width:100%;max-width:750px;text-align:center;font-size:13px;color:#b8d4a0;min-height:20px;padding:2px 0;text-shadow:0 1px 4px rgba(0,0,0,0.5)}
+#controls{display:flex;align-items:center;justify-content:center;gap:30px;width:100%;max-width:750px;padding:4px 0}
+#joystick-zone{position:relative;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.1);display:none;flex-shrink:0}
+#joystick-thumb{position:absolute;width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(255,255,255,0.3),rgba(255,255,255,0.08));border:2px solid rgba(255,255,255,0.2);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+#lantern-btn{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(0,220,255,0.25),rgba(0,100,150,0.15));border:2px solid rgba(0,200,240,0.3);cursor:pointer;display:none;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#7fdbff;transition:all 0.15s;flex-shrink:0}
+#lantern-btn:active{transform:scale(0.92);background:radial-gradient(circle at 40% 40%,rgba(0,220,255,0.45),rgba(0,100,150,0.3))}
+#lantern-btn .emoji{font-size:20px;line-height:1}
+#lantern-btn .count{font-size:10px;opacity:0.7}
+#legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:10px;color:#6a9a50;max-width:750px;padding:2px 0}
+#legend span{display:flex;align-items:center;gap:3px}
+#legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+#start-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(8,15,4,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:20px}
+#start-overlay h1{font-size:clamp(28px,6vw,52px);color:#7fdb4f;text-shadow:0 0 20px rgba(100,200,50,0.4),0 2px 10px rgba(0,0,0,0.5);letter-spacing:2px}
+#start-overlay .subtitle{font-size:clamp(13px,2.5vw,17px);color:#8bba6f;max-width:400px;text-align:center;line-height:1.5}
+#play-btn{padding:14px 40px;font-size:20px;background:linear-gradient(135deg,#4a8c3f,#2d6b1e);color:#fff;border:2px solid #5da04e;border-radius:12px;cursor:pointer;transition:all 0.2s;text-shadow:0 1px 3px rgba(0,0,0,0.3);box-shadow:0 4px 20px rgba(50,120,30,0.4)}
+#play-btn:hover{transform:translateY(-2px);box-shadow:0 6px 30px rgba(50,120,30,0.6);background:linear-gradient(135deg,#5da04e,#3a8229)}
+@media(max-width:500px){#hud{font-size:12px;padding:2px 6px}#joystick-zone,#lantern-btn{display:flex}}
+@media(hover:none)and(pointer:coarse){#joystick-zone,#lantern-btn{display:flex}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div><span class="hud-label">Score</span><span id="score-val">0</span></div>
+    <div><span class="hud-label">Level</span><span id="level-val">1</span></div>
+    <div><span class="hud-label">Lives</span><span id="lives-val"></span></div>
+    <div id="combo-display"></div>
+    <div>
+      <button class="hud-btn" id="mute-btn" title="Toggle sound">Sound: ON</button>
+      <button class="hud-btn" id="restart-btn" title="Restart game">Restart</button>
+    </div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="treacle-overlay"></div>
+  </div>
+  <div id="msg-bar">&nbsp;</div>
+  <div id="controls">
+    <div id="joystick-zone"><div id="joystick-thumb"></div></div>
+    <div id="lantern-btn"><span class="emoji">&#127982;</span><span class="count" id="lantern-count">3</span></div>
+  </div>
+  <div id="legend">
+    <span><span class="dot" style="background:#a67c2e"></span>Nut +10</span>
+    <span><span class="dot" style="background:linear-gradient(135deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f)"></span>Magic +25</span>
+    <span><span class="dot" style="background:#d4a017"></span>Treacle +5</span>
+    <span><span class="dot" style="background:#00ced1"></span>Lantern +15</span>
+  </div>
+</div>
+
+<div id="start-overlay">
+  <h1>&#127795; Squirrel Park &#127795;</h1>
+  <div class="subtitle">
+    Collect nuts &amp; avoid foxes in the park!<br>
+    Deploy laser lanterns to stun enemies.<br>
+    <span style="color:#6a9a50;font-size:12px;display:inline-block;margin-top:6px">
+      Arrow keys / WASD to move &bull; Space to deploy lantern<br>
+      Touch joystick on mobile
+    </span>
+  </div>
+  <button id="play-btn">&#9654; Play</button>
+</div>
+
+<script>
+// ==================== CONFIGURATION ====================
+const TAU = Math.PI * 2;
+const ASPECT = 16 / 9;
+const BASE_W = 750, BASE_H = Math.round(750 / ASPECT);
+const PLAYER_SPEED = 3.5;
+const MAGIC_SPEED_MULT = 2.2;
+const TREACLE_SPEED_MULT = 0.38;
+const MAGIC_DURATION = 300;
+const TREACLE_DURATION = 360;
+const LANTERN_DURATION = 480;
+const MAX_LANTERNS = 3;
+const MAX_PARTICLES = 400;
+const MAX_FLOAT_TEXTS = 30;
+const COMBO_WINDOW = 120;
+
+// ==================== NOTE FREQUENCIES ====================
+const N = {};
+'C D E F G A B'.split(' ').forEach((n, i) => {
+  const s = [0,2,4,5,7,9,11][i];
+  for (let o = 1; o <= 7; o++) N[n+o] = 440 * Math.pow(2, (s - 9) / 12 + (o - 4));
+});
+
+// ==================== DOM REFS ====================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const treacleDiv = document.getElementById('treacle-overlay');
+const msgBar = document.getElementById('msg-bar');
+const scoreEl = document.getElementById('score-val');
+const levelEl = document.getElementById('level-val');
+const livesEl = document.getElementById('lives-val');
+const comboEl = document.getElementById('combo-display');
+const muteBtn = document.getElementById('mute-btn');
+const restartBtn = document.getElementById('restart-btn');
+const startOverlay = document.getElementById('start-overlay');
+const playBtn = document.getElementById('play-btn');
+const joystickZone = document.getElementById('joystick-zone');
+const joystickThumb = document.getElementById('joystick-thumb');
+const lanternBtn = document.getElementById('lantern-btn');
+const lanternCountEl = document.getElementById('lantern-count');
+
+// ==================== BUTTERFLIES ====================
+const butterflies = [];
+function initButterflies() {
+  butterflies.length = 0;
+  for (let i = 0; i < 5; i++) {
+    butterflies.push({
+      x: Math.random() * BASE_W,
+      y: Math.random() * BASE_H * 0.7 + BASE_H * 0.1,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.3,
+      wingPhase: Math.random() * TAU,
+      color: ['#e84393','#fd79a8','#a29bfe','#fdcb6e','#74b9ff'][i % 5],
+      turnTimer: 60 + Math.random() * 120
+    });
+  }
+}
+
+function updateButterflies() {
+  for (const b of butterflies) {
+    b.wingPhase += 0.25;
+    b.x += b.vx;
+    b.y += b.vy + Math.sin(frame * 0.02 + b.wingPhase) * 0.15;
+    b.turnTimer--;
+    if (b.turnTimer <= 0) {
+      b.vx = (Math.random() - 0.5) * 0.5;
+      b.vy = (Math.random() - 0.5) * 0.3;
+      b.turnTimer = 60 + Math.random() * 120;
+    }
+    // Wrap around
+    if (b.x < -10) b.x = W + 10;
+    if (b.x > W + 10) b.x = -10;
+    if (b.y < 10) b.vy = Math.abs(b.vy);
+    if (b.y > H - 30) b.vy = -Math.abs(b.vy);
+  }
+}
+
+function drawButterflies() {
+  for (const b of butterflies) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    const wingSpread = Math.sin(b.wingPhase) * 0.8;
+    ctx.fillStyle = b.color;
+    ctx.globalAlpha = 0.7;
+    // Left wing
+    ctx.beginPath();
+    ctx.ellipse(-3, 0, 4 * Math.abs(wingSpread), 3, -0.3 * wingSpread, 0, TAU);
+    ctx.fill();
+    // Right wing
+    ctx.beginPath();
+    ctx.ellipse(3, 0, 4 * Math.abs(wingSpread), 3, 0.3 * wingSpread, 0, TAU);
+    ctx.fill();
+    // Body
+    ctx.fillStyle = '#333';
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 1, 3, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ==================== GAME STATE ====================
+let W, H, scale;
+let frame = 0;
+let score = 0, level = 1, lives = 3;
+let gameOver = false, gameStarted = false, paused = false;
+let magicTimer = 0, treacleTimer = 0;
+let invincTimer = 0;
+let lanternStock = 3;
+let combo = 0, comboTimer = 0;
+let screenShakeX = 0, screenShakeY = 0, shakeIntensity = 0;
+let msgTimeout = null;
+
+// Entity arrays
+let nuts = [], foxes = [], lanterns = [], particles = [], floatTexts = [];
+let foxSpawnTimer = 0;
+const keys = {};
+
+// Joystick state
+let joyTouchId = null, joyAngle = 0, joyMag = 0;
+const joyCenter = { x: 0, y: 0 };
+
+// ==================== SQUIRREL ====================
+const sq = {
+  x: 0, y: 0, vx: 0, vy: 0,
+  w: 18, h: 24,
+  tailPhase: 0, facing: 1,
+  moving: false
+};
+
+// ==================== BACKGROUND DATA ====================
+let bgCanvas, bgCtx;
+const treeDefs = [
+  { x: 0.08, y: 0.10, s: 1.1 },
+  { x: 0.47, y: 0.06, s: 1.3 },
+  { x: 0.88, y: 0.08, s: 1.0 },
+  { x: 0.05, y: 0.80, s: 1.2 },
+  { x: 0.92, y: 0.82, s: 0.9 },
+  { x: 0.25, y: 0.05, s: 0.8 },
+  { x: 0.72, y: 0.88, s: 1.1 },
+  { x: 0.14, y: 0.45, s: 0.7 },
+];
+const grassPatches = [];
+const flowers = [];
+const pathPoints = [];
+
+// ==================== AUDIO ENGINE ====================
+let actx, masterGain, musicGain, sfxGain, reverbNode, reverbGain;
+let muted = false;
+let seqInterval = null;
+let seqStep = 0;
+let windSource = null;
+let birdTimer = 0;
+
+// Melody patterns
+const melodyNormal = [
+  N.C5, 0, N.E5, N.G5, N.A5, N.G5, N.E5, 0,
+  N.F5, 0, N.A5, N.C6, N.B5, N.A5, N.G5, 0,
+  N.E5, 0, N.G5, N.C6, N.D6, N.C6, N.B5, N.A5,
+  N.G5, N.F5, N.E5, N.D5, N.E5, 0, N.C5, 0
+];
+const melodyMagic = [
+  N.C6, N.E6, N.G6, N.E6, N.C6, N.G5, N.E6, N.G6,
+  N.A5, N.C6, N.E6, N.A5, N.G6, N.E6, N.C6, N.E6,
+  N.F6, N.A5, N.C6, N.A5, N.G5, N.E6, N.D6, N.E6,
+  N.G6, N.E6, N.C6, N.G5, N.D6, N.C6, N.E6, N.C6
+];
+const melodyTreacle = [
+  N.C3, 0, 0, 0, N.E3, 0, 0, 0,
+  N.G3, 0, 0, 0, N.F3, 0, 0, 0,
+  N.E3, 0, 0, 0, N.D3, 0, 0, 0,
+  N.C3, 0, 0, 0, 0, 0, 0, 0
+];
+const bassLine = [
+  N.C2, 0, N.C3, 0, N.G2, 0, N.G3, 0,
+  N.F2, 0, N.F3, 0, N.G2, 0, N.G3, 0
+];
+const percPattern = [
+  'K','H',0,'H','S','H',0,'H','K','H','K','H','S','H',0,'H'
+];
+// Chord pads: C, C, G, G, F, F, G, G (each 2 steps)
+const padChords = [
+  [N.C3, N.E3, N.G3], [N.C3, N.E3, N.G3],
+  [N.G2, N.B2, N.D3], [N.G2, N.B2, N.D3],
+  [N.F2, N.A2, N.C3], [N.F2, N.A2, N.C3],
+  [N.G2, N.B2, N.D3], [N.G2, N.B2, N.D3]
+];
+
+function initAudio() {
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+
+  // Master chain
+  masterGain = actx.createGain();
+  masterGain.gain.value = 0.7;
+
+  const compressor = actx.createDynamicsCompressor();
+  compressor.threshold.value = -18;
+  compressor.knee.value = 12;
+  compressor.ratio.value = 4;
+  compressor.attack.value = 0.003;
+  compressor.release.value = 0.15;
+
+  masterGain.connect(compressor);
+  compressor.connect(actx.destination);
+
+  // Music + SFX buses
+  musicGain = actx.createGain();
+  musicGain.gain.value = 0.55;
+  musicGain.connect(masterGain);
+
+  sfxGain = actx.createGain();
+  sfxGain.gain.value = 0.8;
+  sfxGain.connect(masterGain);
+
+  // Reverb (synthetic impulse response)
+  try {
+    reverbNode = actx.createConvolver();
+    const len = actx.sampleRate * 1.8;
+    const impulse = actx.createBuffer(2, len, actx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = impulse.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.8);
+      }
+    }
+    reverbNode.buffer = impulse;
+    reverbGain = actx.createGain();
+    reverbGain.gain.value = 0.18;
+    reverbNode.connect(reverbGain);
+    reverbGain.connect(masterGain);
+  } catch(e) {
+    reverbNode = null;
+  }
+
+  startWind();
+}
+
+function connectWithReverb(node, dest, wetAmount) {
+  node.connect(dest);
+  if (reverbNode && wetAmount > 0) {
+    const wet = actx.createGain();
+    wet.gain.value = wetAmount;
+    node.connect(wet);
+    wet.connect(reverbNode);
+  }
+}
+
+// ---- Wind ambience ----
+function startWind() {
+  const bufLen = actx.sampleRate * 2;
+  const buf = actx.createBuffer(1, bufLen, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+
+  windSource = actx.createBufferSource();
+  windSource.buffer = buf;
+  windSource.loop = true;
+
+  const filt = actx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.value = 350;
+  filt.Q.value = 0.8;
+
+  const lfo = actx.createOscillator();
+  lfo.frequency.value = 0.12;
+  const lfoG = actx.createGain();
+  lfoG.gain.value = 180;
+  lfo.connect(lfoG);
+  lfoG.connect(filt.frequency);
+
+  const g = actx.createGain();
+  g.gain.value = 0.018;
+
+  windSource.connect(filt);
+  filt.connect(g);
+  g.connect(masterGain);
+  windSource.start();
+  lfo.start();
+}
+
+// ---- Bird chirps ----
+function playBirdChirp() {
+  if (muted || !actx) return;
+  const t = actx.currentTime;
+  const osc = actx.createOscillator();
+  osc.type = 'sine';
+  const baseF = 2200 + Math.random() * 1800;
+  osc.frequency.setValueAtTime(baseF, t);
+  osc.frequency.linearRampToValueAtTime(baseF + (Math.random() > 0.5 ? 400 : -300), t + 0.06);
+  osc.frequency.linearRampToValueAtTime(baseF + 200, t + 0.1);
+
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.025, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+  osc.connect(g);
+  connectWithReverb(g, masterGain, 0.4);
+  osc.start(t);
+  osc.stop(t + 0.15);
+
+  // Sometimes a second chirp
+  if (Math.random() > 0.5) {
+    const o2 = actx.createOscillator();
+    o2.type = 'sine';
+    const f2 = baseF + 300 + Math.random() * 500;
+    o2.frequency.setValueAtTime(f2, t + 0.12);
+    o2.frequency.linearRampToValueAtTime(f2 - 200, t + 0.2);
+    const g2 = actx.createGain();
+    g2.gain.setValueAtTime(0, t + 0.12);
+    g2.gain.linearRampToValueAtTime(0.02, t + 0.13);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    o2.connect(g2);
+    connectWithReverb(g2, masterGain, 0.4);
+    o2.start(t + 0.12);
+    o2.stop(t + 0.25);
+  }
+}
+
+// ---- Music Sequencer ----
+function startMusic() {
+  if (seqInterval) return;
+  seqStep = 0;
+  const stepTime = 60 / 160 / 2 * 1000; // 160 BPM, 8th notes = 187.5ms
+  seqInterval = setInterval(sequencerTick, stepTime);
+}
+
+function stopMusic() {
+  if (seqInterval) { clearInterval(seqInterval); seqInterval = null; }
+}
+
+let padOscs = null;
+function startPad() {
+  if (padOscs) return;
+  padOscs = [];
+  const chord = padChords[0];
+  for (let i = 0; i < 3; i++) {
+    const osc = actx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = chord[i];
+    const filt = actx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 600;
+    filt.Q.value = 0.5;
+    const g = actx.createGain();
+    g.gain.value = 0.03;
+    osc.connect(filt);
+    filt.connect(g);
+    connectWithReverb(g, musicGain, 0.5);
+    osc.start();
+    padOscs.push({ osc, gain: g, filt });
+  }
+}
+
+function updatePad(step) {
+  if (!padOscs) return;
+  const chordIdx = Math.floor((step % 16) / 2);
+  const chord = padChords[chordIdx];
+  const t = actx.currentTime;
+  for (let i = 0; i < 3; i++) {
+    padOscs[i].osc.frequency.exponentialRampToValueAtTime(chord[i], t + 0.1);
+  }
+}
+
+function sequencerTick() {
+  if (muted || !actx || gameOver) return;
+  const t = actx.currentTime;
+
+  // Melody
+  const isMagic = magicTimer > 0;
+  const isTreacle = treacleTimer > 0 && !isMagic;
+  const melArr = isMagic ? melodyMagic : isTreacle ? melodyTreacle : melodyNormal;
+  const melNote = melArr[seqStep % melArr.length];
+
+  if (melNote) {
+    const osc = actx.createOscillator();
+    osc.type = isTreacle ? 'triangle' : 'square';
+    let freq = melNote;
+    if (isMagic) freq *= Math.pow(2, 5 / 1200); // +5 cents
+    osc.frequency.value = freq;
+    const g = actx.createGain();
+    const vol = isTreacle ? 0.08 : 0.12;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    osc.connect(g);
+    connectWithReverb(g, musicGain, 0.2);
+    osc.start(t);
+    osc.stop(t + 0.18);
+  }
+
+  // Bass
+  const bassNote = bassLine[seqStep % bassLine.length];
+  if (bassNote) {
+    const osc = actx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = bassNote;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.14, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc.connect(g);
+    g.connect(musicGain);
+    osc.start(t);
+    osc.stop(t + 0.17);
+  }
+
+  // Percussion
+  const perc = percPattern[seqStep % percPattern.length];
+  if (perc === 'K') playKick(t);
+  else if (perc === 'S') playSnare(t);
+  else if (perc === 'H') playHihat(t);
+
+  // Pad chord changes
+  updatePad(seqStep);
+  if (seqStep === 0 && !padOscs) startPad();
+
+  seqStep++;
+}
+
+function playKick(t) {
+  const osc = actx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(140, t);
+  osc.frequency.exponentialRampToValueAtTime(35, t + 0.1);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.35, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  osc.connect(g);
+  g.connect(musicGain);
+  osc.start(t);
+  osc.stop(t + 0.14);
+}
+
+function playSnare(t) {
+  // Noise burst
+  const bufLen = actx.sampleRate * 0.08;
+  const buf = actx.createBuffer(1, bufLen, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+  const src = actx.createBufferSource();
+  src.buffer = buf;
+  const filt = actx.createBiquadFilter();
+  filt.type = 'highpass';
+  filt.frequency.value = 400;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.18, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+  src.connect(filt);
+  filt.connect(g);
+  g.connect(musicGain);
+  src.start(t);
+  src.stop(t + 0.08);
+  // Tonal body
+  const osc = actx.createOscillator();
+  osc.type = 'square';
+  osc.frequency.value = 180;
+  const g2 = actx.createGain();
+  g2.gain.setValueAtTime(0.06, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  osc.connect(g2);
+  g2.connect(musicGain);
+  osc.start(t);
+  osc.stop(t + 0.05);
+}
+
+function playHihat(t) {
+  const bufLen = actx.sampleRate * 0.04;
+  const buf = actx.createBuffer(1, bufLen, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+  const src = actx.createBufferSource();
+  src.buffer = buf;
+  const filt = actx.createBiquadFilter();
+  filt.type = 'highpass';
+  filt.frequency.value = 7000;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.07, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+  src.connect(filt);
+  filt.connect(g);
+  g.connect(musicGain);
+  src.start(t);
+  src.stop(t + 0.04);
+}
+
+// ---- SFX Functions ----
+function sfxNote(freq, type, dur, vol, delay) {
+  if (muted || !actx) return;
+  const t = actx.currentTime + (delay || 0);
+  const osc = actx.createOscillator();
+  osc.type = type;
+  osc.frequency.value = freq;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.connect(g);
+  connectWithReverb(g, sfxGain, 0.15);
+  osc.start(t);
+  osc.stop(t + dur + 0.01);
+}
+
+function sfxNutCollect() {
+  sfxNote(N.E5, 'square', 0.1, 0.15, 0);
+  sfxNote(N.G5, 'square', 0.12, 0.15, 0.06);
+}
+
+function sfxMagicCollect() {
+  const notes = [N.C5, N.E5, N.G5, N.C6, N.E6];
+  notes.forEach((f, i) => {
+    sfxNote(f, 'square', 0.15, 0.12, i * 0.06);
+    sfxNote(f * 2, 'triangle', 0.12, 0.06, i * 0.06);
+  });
+}
+
+function sfxTreacleCollect() {
+  const notes = [N.G4, N.E4, N.C4, N.A3];
+  notes.forEach((f, i) => sfxNote(f, 'triangle', 0.18, 0.12, i * 0.08));
+  // Low glorp
+  if (actx) {
+    const t = actx.currentTime;
+    const osc = actx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.4);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.1, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    osc.connect(g);
+    g.connect(sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.42);
+  }
+}
+
+function sfxLanternDeploy() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  // Rising zap
+  const osc = actx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(200, t);
+  osc.frequency.exponentialRampToValueAtTime(1800, t + 0.18);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.12, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+  osc.connect(g);
+  connectWithReverb(g, sfxGain, 0.3);
+  osc.start(t);
+  osc.stop(t + 0.22);
+  // Sparkle tail
+  sfxNote(N.E6, 'square', 0.08, 0.06, 0.15);
+  sfxNote(N.G6, 'square', 0.08, 0.06, 0.2);
+  sfxNote(N.C7, 'square', 0.1, 0.06, 0.25);
+}
+
+function sfxFoxBeamHit() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const osc = actx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(1200, t);
+  osc.frequency.exponentialRampToValueAtTime(150, t + 0.15);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.12, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  osc.connect(g);
+  g.connect(sfxGain);
+  osc.start(t);
+  osc.stop(t + 0.2);
+  // Noise
+  const buf = actx.createBuffer(1, actx.sampleRate * 0.05, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const src = actx.createBufferSource();
+  src.buffer = buf;
+  const f = actx.createBiquadFilter();
+  f.type = 'highpass'; f.frequency.value = 3000;
+  const g2 = actx.createGain();
+  g2.gain.setValueAtTime(0.08, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  src.connect(f); f.connect(g2); g2.connect(sfxGain);
+  src.start(t); src.stop(t + 0.06);
+}
+
+function sfxLanternPickup() {
+  [N.D5, N.F5, N.A5, N.D6].forEach((f, i) => sfxNote(f, 'square', 0.12, 0.1, i * 0.07));
+}
+
+function sfxHurt() {
+  [N.A3, N.G3, N.F3].forEach((f, i) => sfxNote(f, 'square', 0.15, 0.15, i * 0.08));
+  // Noise burst
+  if (actx) {
+    const t = actx.currentTime;
+    const buf = actx.createBuffer(1, actx.sampleRate * 0.1, actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = actx.createBufferSource();
+    src.buffer = buf;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.12, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    src.connect(g); g.connect(sfxGain);
+    src.start(t); src.stop(t + 0.12);
+  }
+}
+
+function sfxLevelUp() {
+  [N.C5, N.E5, N.G5, N.C6].forEach((f, i) => {
+    sfxNote(f, 'square', 0.18, 0.12, i * 0.08);
+    sfxNote(f * 2, 'triangle', 0.15, 0.06, i * 0.08);
+  });
+}
+
+function sfxGameOver() {
+  [N.G4, N.E4, N.C4, N.G3].forEach((f, i) => sfxNote(f, 'square', 0.25, 0.15, i * 0.12));
+  if (actx) {
+    const t = actx.currentTime + 0.5;
+    const osc = actx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = N.C3;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.1, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+    osc.connect(g); g.connect(sfxGain);
+    osc.start(t); osc.stop(t + 1.3);
+  }
+}
+
+function sfxCombo(level) {
+  const freq = N.C6 * Math.pow(2, Math.min(level, 5) / 12);
+  sfxNote(freq, 'square', 0.06, 0.08, 0);
+  sfxNote(freq * 1.5, 'triangle', 0.05, 0.04, 0.03);
+}
+
+function toggleMute() {
+  muted = !muted;
+  muteBtn.textContent = muted ? 'Sound: OFF' : 'Sound: ON';
+  if (actx) masterGain.gain.value = muted ? 0 : 0.7;
+}
+
+// ==================== PARTICLE SYSTEM ====================
+function emitP(x, y, vx, vy, life, color, r, grav) {
+  if (particles.length >= MAX_PARTICLES) {
+    // Recycle oldest
+    const p = particles[0];
+    particles.splice(0, 1);
+    Object.assign(p, { x, y, vx, vy, life, maxLife: life, color, r: r || 2, grav: grav || 0 });
+    particles.push(p);
+  } else {
+    particles.push({ x, y, vx, vy, life, maxLife: life, color, r: r || 2, grav: grav || 0 });
+  }
+}
+
+function emitBurst(x, y, count, color, speed, life, r) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * TAU;
+    const s = Math.random() * speed;
+    emitP(x, y, Math.cos(a) * s, Math.sin(a) * s, life || 40, color, r || 2, 0.05);
+  }
+}
+
+function emitRainbowBurst(x, y, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * TAU;
+    const s = 1 + Math.random() * 3;
+    const hue = (i / count * 360) | 0;
+    emitP(x, y, Math.cos(a) * s, Math.sin(a) * s, 50, `hsl(${hue},100%,65%)`, 2.5, 0.03);
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += p.grav;
+    p.vx *= 0.98;
+    p.vy *= 0.98;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * alpha, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ==================== FLOATING TEXT ====================
+function addFloatText(x, y, text, color, size) {
+  if (floatTexts.length >= MAX_FLOAT_TEXTS) floatTexts.shift();
+  floatTexts.push({ x, y, text, color, size: size || 14, life: 60, maxLife: 60 });
+}
+
+function updateFloatTexts() {
+  for (let i = floatTexts.length - 1; i >= 0; i--) {
+    const ft = floatTexts[i];
+    ft.y -= 0.8;
+    ft.life--;
+    if (ft.life <= 0) floatTexts.splice(i, 1);
+  }
+}
+
+function drawFloatTexts() {
+  for (const ft of floatTexts) {
+    const alpha = Math.max(0, ft.life / ft.maxLife);
+    const scale = 1 + (1 - alpha) * 0.3;
+    ctx.globalAlpha = alpha;
+    ctx.font = `bold ${ft.size * scale}px 'Segoe UI',system-ui,sans-serif`;
+    ctx.fillStyle = ft.color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 3;
+    ctx.textAlign = 'center';
+    ctx.strokeText(ft.text, ft.x, ft.y);
+    ctx.fillText(ft.text, ft.x, ft.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ==================== SCREEN SHAKE ====================
+function addShake(intensity) {
+  shakeIntensity = Math.max(shakeIntensity, intensity);
+}
+
+function updateShake() {
+  if (shakeIntensity > 0.3) {
+    screenShakeX = (Math.random() - 0.5) * shakeIntensity * 2;
+    screenShakeY = (Math.random() - 0.5) * shakeIntensity * 2;
+    shakeIntensity *= 0.88;
+  } else {
+    screenShakeX = screenShakeY = shakeIntensity = 0;
+  }
+}
+
+// ==================== BACKGROUND ====================
+function generateBackground() {
+  bgCanvas = document.createElement('canvas');
+  bgCanvas.width = W;
+  bgCanvas.height = H;
+  bgCtx = bgCanvas.getContext('2d');
+
+  // Base gradient
+  const grad = bgCtx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#4a8c3f');
+  grad.addColorStop(0.5, '#438537');
+  grad.addColorStop(1, '#3d7534');
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, W, H);
+
+  // Grass texture patches
+  grassPatches.length = 0;
+  for (let i = 0; i < 25; i++) {
+    grassPatches.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      rx: 20 + Math.random() * 40,
+      ry: 12 + Math.random() * 25,
+      color: Math.random() > 0.5 ? 'rgba(55,110,40,0.3)' : 'rgba(80,145,60,0.2)'
+    });
+  }
+  for (const gp of grassPatches) {
+    bgCtx.fillStyle = gp.color;
+    bgCtx.beginPath();
+    bgCtx.ellipse(gp.x, gp.y, gp.rx, gp.ry, Math.random() * 0.5, 0, TAU);
+    bgCtx.fill();
+  }
+
+  // Winding path
+  bgCtx.strokeStyle = '#b89d5f';
+  bgCtx.lineWidth = 28;
+  bgCtx.lineCap = 'round';
+  bgCtx.lineJoin = 'round';
+  bgCtx.beginPath();
+  bgCtx.moveTo(0, H * 0.5);
+  bgCtx.bezierCurveTo(W * 0.2, H * 0.3, W * 0.35, H * 0.7, W * 0.5, H * 0.45);
+  bgCtx.bezierCurveTo(W * 0.65, H * 0.2, W * 0.8, H * 0.6, W, H * 0.4);
+  bgCtx.stroke();
+  // Path inner
+  bgCtx.strokeStyle = '#c4a96e';
+  bgCtx.lineWidth = 20;
+  bgCtx.stroke();
+  // Path detail dots
+  bgCtx.fillStyle = 'rgba(160,130,80,0.3)';
+  for (let t = 0; t < 1; t += 0.03) {
+    const px = bezierPoint(0, W*0.2, W*0.35, W*0.5, t < 0.5 ? t*2 : 0) ||
+               W * (0.15 + t * 0.7) + Math.sin(t * 8) * 30;
+    bgCtx.beginPath();
+    bgCtx.arc(W * (0.05 + t * 0.9), H * (0.35 + Math.sin(t * 5) * 0.15), 2, 0, TAU);
+    bgCtx.fill();
+  }
+
+  // Pond
+  const pondX = W * 0.75, pondY = H * 0.65;
+  const pondGrad = bgCtx.createRadialGradient(pondX, pondY, 5, pondX, pondY, 40);
+  pondGrad.addColorStop(0, '#5ab8d4');
+  pondGrad.addColorStop(0.7, '#3a8bb4');
+  pondGrad.addColorStop(1, '#3d7534');
+  bgCtx.fillStyle = pondGrad;
+  bgCtx.beginPath();
+  bgCtx.ellipse(pondX, pondY, 42, 28, 0, 0, TAU);
+  bgCtx.fill();
+  // Pond edge
+  bgCtx.strokeStyle = 'rgba(100,70,40,0.3)';
+  bgCtx.lineWidth = 2;
+  bgCtx.stroke();
+
+  // Flowers
+  flowers.length = 0;
+  const flowerColors = ['#e84393','#fd79a8','#fdcb6e','#e17055','#a29bfe','#fff'];
+  for (let i = 0; i < 30; i++) {
+    flowers.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+      r: 2 + Math.random() * 2,
+      petals: 4 + Math.floor(Math.random() * 3)
+    });
+  }
+  for (const f of flowers) {
+    bgCtx.fillStyle = f.color;
+    for (let p = 0; p < f.petals; p++) {
+      const a = (p / f.petals) * TAU;
+      bgCtx.beginPath();
+      bgCtx.ellipse(f.x + Math.cos(a) * f.r, f.y + Math.sin(a) * f.r, f.r * 0.7, f.r * 0.4, a, 0, TAU);
+      bgCtx.fill();
+    }
+    bgCtx.fillStyle = '#fdcb6e';
+    bgCtx.beginPath();
+    bgCtx.arc(f.x, f.y, f.r * 0.35, 0, TAU);
+    bgCtx.fill();
+  }
+
+  // Tree shadows
+  for (const td of treeDefs) {
+    const tx = td.x * W, ty = td.y * H, ts = td.s;
+    bgCtx.fillStyle = 'rgba(0,0,0,0.12)';
+    bgCtx.beginPath();
+    bgCtx.ellipse(tx + 5, ty + 30 * ts, 25 * ts, 10 * ts, 0, 0, TAU);
+    bgCtx.fill();
+  }
+}
+
+function bezierPoint(p0, p1, p2, p3, t) {
+  const mt = 1 - t;
+  return mt*mt*mt*p0 + 3*mt*mt*t*p1 + 3*mt*t*t*p2 + t*t*t*p3;
+}
+
+function drawTree(tx, ty, s) {
+  ctx.save();
+  ctx.translate(tx, ty);
+  // Trunk
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(-4 * s, -5 * s, 8 * s, 30 * s);
+  // Trunk highlight
+  ctx.fillStyle = '#6b4423';
+  ctx.fillRect(-2 * s, -5 * s, 4 * s, 30 * s);
+  // Foliage layers
+  const cols = ['#1e5a12', '#2a7020', '#237518'];
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = cols[i];
+    ctx.beginPath();
+    ctx.ellipse((i - 1) * 6 * s, (-10 - i * 8) * s, 18 * s, 15 * s, 0, 0, TAU);
+    ctx.fill();
+  }
+  // Foliage highlight
+  ctx.fillStyle = 'rgba(120,200,80,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(-5 * s, -22 * s, 10 * s, 8 * s, -0.3, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ==================== DRAWING: SQUIRREL ====================
+function drawSquirrel() {
+  const { x, y, w, h } = sq;
+  const isMagic = magicTimer > 0;
+  const isTreacle = treacleTimer > 0 && !isMagic;
+  const isInvinc = invincTimer > 0;
+
+  // Blink during invincibility
+  if (isInvinc && (frame % 8) < 4) return;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(2, h * 0.5, w * 0.9, 5, 0, 0, TAU);
+  ctx.fill();
+
+  // Glow for magic
+  if (isMagic) {
+    const hue = (frame * 8) % 360;
+    ctx.shadowColor = `hsl(${hue},100%,60%)`;
+    ctx.shadowBlur = 20 + Math.sin(frame * 0.2) * 5;
+  }
+
+  // Tail (behind body)
+  const tailWag = isTreacle ? Math.sin(frame * 0.03) * 0.15 :
+                  isMagic ? Math.sin(frame * 0.3) * 0.6 :
+                  Math.sin(frame * 0.12) * 0.4;
+  const tailColor = isMagic ? `hsl(${(frame * 10) % 360},100%,50%)` :
+                    isTreacle ? '#b8860b' : '#7a5230';
+  ctx.strokeStyle = tailColor;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const tf = sq.facing;
+  ctx.moveTo(tf * -2, -2);
+  ctx.bezierCurveTo(
+    tf * (-12 + tailWag * 10), -10,
+    tf * (-18 + tailWag * 15), -25,
+    tf * (-10 + tailWag * 12), -30
+  );
+  ctx.stroke();
+  // Tail fluff
+  ctx.fillStyle = tailColor;
+  ctx.beginPath();
+  ctx.arc(tf * (-10 + tailWag * 12), -30, 4, 0, TAU);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+
+  // Body
+  const bodyColor = isMagic ? `hsl(${(frame * 8) % 360},80%,45%)` :
+                    isTreacle ? '#b8860b' : '#8b5e3c';
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w * 0.55, h * 0.45, 0, 0, TAU);
+  ctx.fill();
+
+  // Belly
+  ctx.fillStyle = isMagic ? `hsl(${(frame * 8 + 40) % 360},70%,65%)` :
+                  isTreacle ? '#d4a017' : '#c4956a';
+  ctx.beginPath();
+  ctx.ellipse(0, h * 0.08, w * 0.35, h * 0.28, 0, 0, TAU);
+  ctx.fill();
+
+  // Head
+  const headColor = isMagic ? `hsl(${(frame * 8 + 20) % 360},80%,50%)` :
+                    isTreacle ? '#c49a12' : '#a0704e';
+  ctx.fillStyle = headColor;
+  ctx.beginPath();
+  ctx.ellipse(0, -h * 0.52, w * 0.4, h * 0.3, 0, 0, TAU);
+  ctx.fill();
+
+  // Ears
+  const earColor = isMagic ? `hsl(${(frame * 8 + 60) % 360},80%,40%)` :
+                   isTreacle ? '#a08010' : '#6b4423';
+  ctx.fillStyle = earColor;
+  for (let side = -1; side <= 1; side += 2) {
+    ctx.beginPath();
+    ctx.moveTo(side * w * 0.25, -h * 0.65);
+    ctx.lineTo(side * w * 0.4, -h * 0.9);
+    ctx.lineTo(side * w * 0.1, -h * 0.7);
+    ctx.fill();
+  }
+
+  // Eyes
+  const lookX = sq.vx * 0.3;
+  const lookY = sq.vy * 0.3;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(-5 + lookX * 0.2, -h * 0.52, 3.5, 4, 0, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(5 + lookX * 0.2, -h * 0.52, 3.5, 4, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.arc(-5 + lookX, -h * 0.52 + lookY * 0.5, 1.8, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(5 + lookX, -h * 0.52 + lookY * 0.5, 1.8, 0, TAU);
+  ctx.fill();
+
+  // Nose
+  ctx.fillStyle = '#3a2010';
+  ctx.beginPath();
+  ctx.ellipse(0, -h * 0.4, 2, 1.5, 0, 0, TAU);
+  ctx.fill();
+
+  // Treacle drips
+  if (isTreacle) {
+    ctx.fillStyle = 'rgba(180,130,10,0.6)';
+    for (let i = 0; i < 3; i++) {
+      const dx = (i - 1) * 6;
+      const dy = h * 0.35 + Math.sin(frame * 0.05 + i) * 3;
+      ctx.beginPath();
+      ctx.ellipse(dx, dy, 2.5, 4 + Math.sin(frame * 0.08 + i) * 2, 0, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  // Feet
+  ctx.fillStyle = isTreacle ? '#8a6a10' : '#6b4423';
+  const footBob = sq.moving ? Math.sin(frame * 0.3) * 2 : 0;
+  ctx.beginPath();
+  ctx.ellipse(-6, h * 0.4 + footBob, 4, 3, 0, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(6, h * 0.4 - footBob, 4, 3, 0, 0, TAU);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Magic trail particles
+  if (isMagic && sq.moving && frame % 2 === 0) {
+    const hue = (frame * 12) % 360;
+    emitP(x - sq.vx * 2, y - sq.vy * 2 + 5,
+      (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5,
+      30, `hsl(${hue},100%,65%)`, 3, 0.02);
+  }
+
+  // Dust trail when moving
+  if (sq.moving && frame % 5 === 0 && !isMagic) {
+    emitP(x, y + h * 0.4, (Math.random()-0.5)*0.5, -Math.random()*0.3, 20, 'rgba(120,100,60,0.3)', 2, 0);
+  }
+}
+
+// ==================== DRAWING: FOX ====================
+function drawFox(fox) {
+  const { x, y, stunTimer } = fox;
+  const isMagic = magicTimer > 0;
+
+  // Spawn warning indicator
+  if (fox.spawnAnim > 0) {
+    ctx.save();
+    ctx.translate(
+      Math.max(15, Math.min(W - 15, x)),
+      Math.max(15, Math.min(H - 15, y))
+    );
+    ctx.globalAlpha = 0.5 + Math.sin(frame * 0.4) * 0.3;
+    ctx.fillStyle = '#ff4757';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('!', 0, 0);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  if (isMagic) {
+    ctx.globalAlpha = 0.55;
+    if (frame % 3 === 0) ctx.translate((Math.random()-0.5)*3, (Math.random()-0.5)*3);
+  }
+  if (stunTimer > 0) {
+    ctx.translate((Math.random()-0.5)*2, (Math.random()-0.5)*2);
+  }
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.ellipse(2, 18, 14, 5, 0, 0, TAU);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = '#d4652b';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 13, 10, 0, 0, TAU);
+  ctx.fill();
+  // Belly
+  ctx.fillStyle = '#f0c090';
+  ctx.beginPath();
+  ctx.ellipse(0, 3, 8, 5, 0, 0, TAU);
+  ctx.fill();
+
+  // Head
+  const headY = -14;
+  ctx.fillStyle = '#e8803c';
+  ctx.beginPath();
+  ctx.ellipse(0, headY, 10, 9, 0, 0, TAU);
+  ctx.fill();
+  // Snout
+  ctx.fillStyle = '#f0c090';
+  ctx.beginPath();
+  ctx.ellipse(0, headY + 5, 5, 4, 0, 0, TAU);
+  ctx.fill();
+  // Nose
+  ctx.fillStyle = '#2a1a0a';
+  ctx.beginPath();
+  ctx.arc(0, headY + 2, 2, 0, TAU);
+  ctx.fill();
+
+  // Ears
+  for (let side = -1; side <= 1; side += 2) {
+    // Outer (white/orange)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(side * 6, headY - 7);
+    ctx.lineTo(side * 11, headY - 18);
+    ctx.lineTo(side * 2, headY - 9);
+    ctx.fill();
+    ctx.fillStyle = '#d4652b';
+    ctx.beginPath();
+    ctx.moveTo(side * 7, headY - 9);
+    ctx.lineTo(side * 10, headY - 16);
+    ctx.lineTo(side * 4, headY - 10);
+    ctx.fill();
+  }
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(-4, headY - 1, 3, 3.5, 0, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(4, headY - 1, 3, 3.5, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = isMagic ? '#ff0000' : '#1a1a1a';
+  ctx.beginPath();
+  ctx.arc(-4, headY - 1, 1.5, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(4, headY - 1, 1.5, 0, TAU);
+  ctx.fill();
+
+  // Tail
+  ctx.strokeStyle = '#d4652b';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 8);
+  ctx.bezierCurveTo(-8, 14, -15, 8, -12, 2);
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(-12, 2, 3, 0, TAU);
+  ctx.fill();
+
+  // Stun stars
+  if (stunTimer > 0) {
+    for (let i = 0; i < 3; i++) {
+      const sa = frame * 0.15 + i * TAU / 3;
+      const sx = Math.cos(sa) * 14;
+      const sy = headY - 22 + Math.sin(sa) * 4;
+      ctx.fillStyle = '#ffd700';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('★', sx - 4, sy);
+    }
+  }
+
+  ctx.restore();
+}
+
+// ==================== DRAWING: NUTS ====================
+function drawNormalNut(nut) {
+  const bob = Math.sin(frame * 0.06 + nut.phase) * 3;
+  ctx.save();
+  ctx.translate(nut.x, nut.y + bob);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+  ctx.beginPath();
+  ctx.ellipse(1, 8 - bob, 7, 3, 0, 0, TAU);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = '#a67c2e';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 6, 8, 0, 0, TAU);
+  ctx.fill();
+
+  // Cap
+  ctx.fillStyle = '#7a5a1e';
+  ctx.beginPath();
+  ctx.ellipse(0, -5, 7, 4, 0, 0, TAU);
+  ctx.fill();
+  // Cap band
+  ctx.fillStyle = '#6b4e18';
+  ctx.fillRect(-7, -4, 14, 2);
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(-2, -1, 2, 3, -0.3, 0, TAU);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawMagicNut(nut) {
+  const bob = Math.sin(frame * 0.08 + nut.phase) * 4;
+  ctx.save();
+  ctx.translate(nut.x, nut.y + bob);
+
+  // Glow
+  const hue = (frame * 6 + nut.phase * 100) % 360;
+  ctx.shadowColor = `hsl(${hue},100%,60%)`;
+  ctx.shadowBlur = 15 + Math.sin(frame * 0.15) * 5;
+
+  // Body - rainbow gradient
+  const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, 10);
+  grad.addColorStop(0, `hsl(${hue},100%,75%)`);
+  grad.addColorStop(0.5, `hsl(${(hue + 60) % 360},100%,55%)`);
+  grad.addColorStop(1, `hsl(${(hue + 120) % 360},100%,45%)`);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 9, 11, 0, 0, TAU);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+
+  // Orbiting sparkles
+  for (let i = 0; i < 4; i++) {
+    const a = frame * 0.08 + i * TAU / 4;
+    const sx = Math.cos(a) * 15;
+    const sy = Math.sin(a) * 15;
+    const sh = (hue + i * 90) % 360;
+    ctx.fillStyle = `hsl(${sh},100%,80%)`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2 + Math.sin(frame * 0.2 + i) * 0.8, 0, TAU);
+    ctx.fill();
+  }
+
+  // Inner sparkle
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.beginPath();
+  ctx.arc(-2, -2, 3, 0, TAU);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawTreacleNut(nut) {
+  const bob = Math.sin(frame * 0.05 + nut.phase) * 2;
+  ctx.save();
+  ctx.translate(nut.x, nut.y + bob);
+
+  // Glow
+  ctx.shadowColor = 'rgba(212,160,23,0.6)';
+  ctx.shadowBlur = 12;
+
+  // Body
+  const grad = ctx.createRadialGradient(-2, -2, 2, 0, 0, 10);
+  grad.addColorStop(0, '#e8c030');
+  grad.addColorStop(0.6, '#d4a017');
+  grad.addColorStop(1, '#b8860b');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 8, 10, 0, 0, TAU);
+  ctx.fill();
+
+  // Drip
+  ctx.fillStyle = '#b8860b';
+  ctx.beginPath();
+  ctx.ellipse(0, 10, 4, 5 + Math.sin(frame * 0.04) * 2, 0, 0, TAU);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+
+  // Gloss
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(-2, -3, 3, 4, -0.4, 0, Math.PI);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawLanternPickup(nut) {
+  const bob = Math.sin(frame * 0.07 + nut.phase) * 3;
+  const pulse = 0.8 + Math.sin(frame * 0.12) * 0.2;
+  ctx.save();
+  ctx.translate(nut.x, nut.y + bob);
+
+  // Cross-hair lines (faint)
+  ctx.strokeStyle = 'rgba(0,206,209,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -20); ctx.lineTo(0, 20);
+  ctx.moveTo(-20, 0); ctx.lineTo(20, 0);
+  ctx.stroke();
+
+  // Glow
+  ctx.shadowColor = 'rgba(0,206,209,0.7)';
+  ctx.shadowBlur = 10 * pulse;
+
+  // Lantern body
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-3, -8, 6, 2); // top cap
+  ctx.fillStyle = '#1a8a8a';
+  ctx.fillRect(-4, -6, 8, 10); // frame
+  ctx.fillStyle = `rgba(0,220,240,${0.5 + Math.sin(frame * 0.15) * 0.3})`;
+  ctx.fillRect(-3, -5, 6, 8); // glass
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-3, 4, 6, 2); // bottom cap
+  // Pole
+  ctx.fillRect(-1, 6, 2, 4);
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawNut(nut) {
+  if (nut.type === 'normal') drawNormalNut(nut);
+  else if (nut.type === 'magic') drawMagicNut(nut);
+  else if (nut.type === 'treacle') drawTreacleNut(nut);
+  else if (nut.type === 'lantern') drawLanternPickup(nut);
+}
+
+// ==================== DRAWING: DEPLOYED LANTERN ====================
+function drawDeployedLantern(lan) {
+  const { x, y, timer } = lan;
+  const progress = 1 - timer / LANTERN_DURATION;
+  const pulse = 0.7 + Math.sin(frame * 0.1) * 0.3;
+
+  // Light pool
+  ctx.save();
+  const poolGrad = ctx.createRadialGradient(x, y, 5, x, y, 50);
+  poolGrad.addColorStop(0, `rgba(0,220,240,${0.08 * pulse})`);
+  poolGrad.addColorStop(1, 'rgba(0,220,240,0)');
+  ctx.fillStyle = poolGrad;
+  ctx.beginPath();
+  ctx.arc(x, y, 50, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+
+  // Beams
+  ctx.save();
+  const beamAlpha = progress > 0.65 ? (1 - progress) / 0.35 : 1;
+  ctx.globalAlpha = beamAlpha;
+
+  // Outer glow
+  ctx.strokeStyle = `rgba(0,220,240,${0.12 * pulse})`;
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(x, 0); ctx.lineTo(x, H);
+  ctx.moveTo(0, y); ctx.lineTo(W, y);
+  ctx.stroke();
+
+  // Inner beam
+  ctx.strokeStyle = `rgba(0,240,255,${0.4 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  ctx.lineDashOffset = -frame * 2;
+  ctx.beginPath();
+  ctx.moveTo(x, 0); ctx.lineTo(x, H);
+  ctx.moveTo(0, y); ctx.lineTo(W, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Lantern body
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.shadowColor = `rgba(0,220,240,${0.5 * pulse})`;
+  ctx.shadowBlur = 12 * pulse;
+
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-4, -10, 8, 3); // top cap
+  ctx.fillStyle = '#1a8a8a';
+  ctx.fillRect(-5, -7, 10, 12); // frame
+  ctx.fillStyle = `rgba(0,220,240,${0.5 + Math.sin(frame * 0.15) * 0.3})`;
+  ctx.fillRect(-4, -6, 8, 10); // glass
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-4, 5, 8, 3); // bottom cap
+  ctx.fillRect(-1.5, 8, 3, 5); // pole
+
+  ctx.shadowBlur = 0;
+
+  // Countdown ring
+  if (progress > 0.65) {
+    ctx.strokeStyle = '#ff3030';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    const endAngle = -Math.PI / 2 + TAU * ((progress - 0.65) / 0.35);
+    ctx.arc(0, 0, 16, -Math.PI / 2, endAngle);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ==================== SPAWNING ====================
+function spawnNuts() {
+  const count = 5 + level * 2;
+  nuts = [];
+  for (let i = 0; i < count; i++) {
+    const r = Math.random();
+    let type;
+    if (r < 0.07) type = 'lantern';
+    else if (r < 0.20) type = 'treacle';
+    else if (r < 0.34) type = 'magic';
+    else type = 'normal';
+
+    // Avoid spawning too close to squirrel or edges or other nuts
+    let nx, ny, valid;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      nx = 40 + Math.random() * (W - 80);
+      ny = 40 + Math.random() * (H - 80);
+      valid = true;
+      const dx = nx - sq.x, dy = ny - sq.y;
+      if (dx * dx + dy * dy < 2500) { valid = false; continue; }
+      for (const other of nuts) {
+        const odx = nx - other.x, ody = ny - other.y;
+        if (odx * odx + ody * ody < 900) { valid = false; break; }
+      }
+      if (valid) break;
+    }
+    nuts.push({ x: nx, y: ny, type, phase: Math.random() * TAU, collected: false });
+  }
+}
+
+function spawnFox() {
+  const maxFoxes = 2 + level;
+  if (foxes.length >= maxFoxes) return;
+
+  // Spawn from random edge with warning
+  const side = Math.floor(Math.random() * 4);
+  let fx, fy;
+  if (side === 0) { fx = Math.random() * W; fy = -20; }
+  else if (side === 1) { fx = W + 20; fy = Math.random() * H; }
+  else if (side === 2) { fx = Math.random() * W; fy = H + 20; }
+  else { fx = -20; fy = Math.random() * H; }
+
+  foxes.push({ x: fx, y: fy, stunTimer: 0, spawnAnim: 15 });
+}
+
+// ==================== GAME LOGIC ====================
+function deployLantern() {
+  if (lanternStock <= 0 || gameOver) return;
+  lanternStock--;
+  lanterns.push({ x: sq.x, y: sq.y, timer: LANTERN_DURATION });
+  sfxLanternDeploy();
+  showMessage('Lantern deployed!');
+  emitBurst(sq.x, sq.y, 15, '#00ced1', 3, 30, 2);
+  updateLanternUI();
+}
+
+function collectNut(nut) {
+  nut.collected = true;
+  let points = 0;
+  let msg = '';
+
+  // Combo
+  if (comboTimer > 0) {
+    combo++;
+    sfxCombo(combo);
+  } else {
+    combo = 1;
+  }
+  comboTimer = COMBO_WINDOW;
+  const mult = Math.min(combo, 5);
+
+  if (nut.type === 'normal') {
+    points = 10 * mult;
+    sfxNutCollect();
+    emitBurst(nut.x, nut.y, 8, '#c4956a', 2, 25, 2);
+    msg = combo > 1 ? `Nut! x${mult} +${points}` : 'Nut collected! +10';
+  } else if (nut.type === 'magic') {
+    points = 25 * mult;
+    sfxMagicCollect();
+    magicTimer = MAGIC_DURATION;
+    treacleTimer = 0;
+    treacleDiv.style.background = 'transparent';
+    emitRainbowBurst(nut.x, nut.y, 25);
+    msg = combo > 1 ? `MAGIC! x${mult} +${points}` : 'MAGIC MODE! +25';
+  } else if (nut.type === 'treacle') {
+    points = 5 * mult;
+    sfxTreacleCollect();
+    if (magicTimer > 0) {
+      msg = 'Magic protects you!';
+    } else {
+      treacleTimer = TREACLE_DURATION;
+      msg = combo > 1 ? `Treacle! x${mult} +${points}` : 'Treacle mode! +5';
+    }
+    emitBurst(nut.x, nut.y, 10, '#d4a017', 2, 25, 2);
+  } else if (nut.type === 'lantern') {
+    points = 15 * mult;
+    sfxLanternPickup();
+    if (lanternStock < MAX_LANTERNS) lanternStock++;
+    updateLanternUI();
+    emitBurst(nut.x, nut.y, 12, '#00ced1', 2.5, 30, 2);
+    msg = combo > 1 ? `Lantern! x${mult} +${points}` : 'Lantern collected! +15';
+  }
+
+  score += points;
+  const color = nut.type === 'magic' ? `hsl(${(frame*8)%360},100%,65%)` :
+                nut.type === 'treacle' ? '#ffd700' :
+                nut.type === 'lantern' ? '#00ced1' : '#fff';
+  const txt = combo > 1 ? `x${mult} +${points}` : `+${points}`;
+  addFloatText(nut.x, nut.y - 10, txt, color, combo > 1 ? 16 + combo * 2 : 14);
+
+  showMessage(msg);
+}
+
+function hurtSquirrel() {
+  if (invincTimer > 0 || magicTimer > 0) return;
+  lives--;
+  invincTimer = 120;
+  sfxHurt();
+  addShake(8);
+  emitBurst(sq.x, sq.y, 15, '#ff4757', 3, 30, 3);
+  addFloatText(sq.x, sq.y - 20, 'OUCH!', '#ff4757', 18);
+
+  if (lives <= 0) {
+    gameOver = true;
+    sfxGameOver();
+    stopMusic();
+    showMessage('Game Over!');
+  }
+}
+
+function checkLevelUp() {
+  const remaining = nuts.filter(n => !n.collected);
+  if (remaining.length === 0) {
+    level++;
+    sfxLevelUp();
+    if (lanternStock < MAX_LANTERNS) lanternStock++;
+    updateLanternUI();
+    showMessage(`Level ${level}!`);
+    addFloatText(W / 2, H / 2, `LEVEL ${level}`, '#7fdbff', 24);
+    emitRainbowBurst(W / 2, H / 2, 30);
+    spawnNuts();
+  }
+}
+
+function foxHitBeam(fox, lantern) {
+  fox.stunTimer = 50;
+  sfxFoxBeamHit();
+  // Bounce away from lantern
+  const dx = fox.x - lantern.x;
+  const dy = fox.y - lantern.y;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  fox.x += (dx / dist) * 20;
+  fox.y += (dy / dist) * 20;
+  // Clamp to canvas
+  fox.x = Math.max(0, Math.min(W, fox.x));
+  fox.y = Math.max(0, Math.min(H, fox.y));
+  // Particles
+  emitBurst(fox.x, fox.y, 12, '#00ced1', 3, 25, 2);
+  emitBurst(fox.x, fox.y, 6, '#fff', 2, 15, 1.5);
+}
+
+// ==================== UPDATE ====================
+function update() {
+  if (gameOver || !gameStarted) return;
+  frame++;
+
+  // Timers
+  if (magicTimer > 0) magicTimer--;
+  if (treacleTimer > 0 && magicTimer <= 0) {
+    treacleTimer--;
+    if (treacleTimer <= 0) treacleDiv.style.background = 'transparent';
+  }
+  if (invincTimer > 0) invincTimer--;
+  if (comboTimer > 0) {
+    comboTimer--;
+    if (comboTimer <= 0) combo = 0;
+  }
+
+  // Treacle overlay
+  if (treacleTimer > 0 && magicTimer <= 0) {
+    const tAlpha = Math.min(0.35, treacleTimer / TREACLE_DURATION * 0.35);
+    treacleDiv.style.background = `rgba(180,140,20,${tAlpha})`;
+  }
+
+  // Squirrel movement
+  let mx = 0, my = 0;
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) mx -= 1;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) mx += 1;
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) my -= 1;
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) my += 1;
+
+  // Joystick input
+  if (joyMag > 0.15) {
+    mx += Math.cos(joyAngle) * joyMag;
+    my += Math.sin(joyAngle) * joyMag;
+  }
+
+  // Normalize diagonal
+  const inputLen = Math.sqrt(mx * mx + my * my);
+  if (inputLen > 1) { mx /= inputLen; my /= inputLen; }
+
+  let speed = PLAYER_SPEED;
+  if (magicTimer > 0) speed *= MAGIC_SPEED_MULT;
+  else if (treacleTimer > 0) speed *= TREACLE_SPEED_MULT;
+
+  sq.vx = mx * speed;
+  sq.vy = my * speed;
+  sq.x += sq.vx;
+  sq.y += sq.vy;
+  sq.moving = inputLen > 0.1;
+  if (mx !== 0) sq.facing = mx > 0 ? 1 : -1;
+
+  // Clamp
+  sq.x = Math.max(sq.w, Math.min(W - sq.w, sq.x));
+  sq.y = Math.max(sq.h, Math.min(H - sq.h, sq.y));
+
+  sq.tailPhase += sq.moving ? 0.15 : 0.08;
+
+  // Fox spawning
+  foxSpawnTimer--;
+  if (foxSpawnTimer <= 0) {
+    const interval = Math.max(800, 2500 - level * 200);
+    foxSpawnTimer = interval / (1000 / 60);
+    spawnFox();
+  }
+
+  // Fox movement
+  const foxSpeed = (1.2 + level * 0.3) * (treacleTimer > 0 && magicTimer <= 0 ? 0.45 : 1);
+  for (const fox of foxes) {
+    if (fox.spawnAnim > 0) { fox.spawnAnim--; continue; }
+    if (fox.stunTimer > 0) { fox.stunTimer--; continue; }
+
+    const dx = sq.x - fox.x;
+    const dy = sq.y - fox.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    fox.x += (dx / dist) * foxSpeed;
+    fox.y += (dy / dist) * foxSpeed;
+  }
+
+  // Nut collection (with magnetism for close nuts)
+  for (const nut of nuts) {
+    if (nut.collected) continue;
+    const dx = sq.x - nut.x, dy = sq.y - nut.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Magnetism - pull nearby nuts
+    if (dist < 40 && dist > 15) {
+      nut.x += (dx / dist) * 1.5;
+      nut.y += (dy / dist) * 1.5;
+    }
+
+    if (dist < 18) collectNut(nut);
+  }
+
+  // Fox collision with squirrel
+  for (const fox of foxes) {
+    if (fox.stunTimer > 0 || fox.spawnAnim > 0) continue;
+    const dx = sq.x - fox.x, dy = sq.y - fox.y;
+    if (dx * dx + dy * dy < 400) {
+      hurtSquirrel();
+      break;
+    }
+  }
+
+  // Lantern updates
+  for (let i = lanterns.length - 1; i >= 0; i--) {
+    const lan = lanterns[i];
+    lan.timer--;
+    if (lan.timer <= 0) { lanterns.splice(i, 1); continue; }
+
+    // Check fox-beam collisions
+    for (const fox of foxes) {
+      if (fox.stunTimer > 0) continue;
+      // Vertical beam
+      if (Math.abs(fox.x - lan.x) < 8) foxHitBeam(fox, lan);
+      // Horizontal beam
+      if (Math.abs(fox.y - lan.y) < 8) foxHitBeam(fox, lan);
+    }
+  }
+
+  // Remove off-screen foxes that were bounced far away
+  for (let i = foxes.length - 1; i >= 0; i--) {
+    const fox = foxes[i];
+    if ((fox.x < -100 || fox.x > W + 100 || fox.y < -100 || fox.y > H + 100) && fox.stunTimer > 0) {
+      foxes.splice(i, 1);
+    }
+  }
+
+  // Level up
+  checkLevelUp();
+
+  // Butterflies
+  updateButterflies();
+
+  // Ambient leaves
+  if (frame % 40 === 0) {
+    const lx = Math.random() * W;
+    const hue = 80 + Math.random() * 60;
+    emitP(lx, -5, (Math.random()-0.5)*0.8, 0.3 + Math.random()*0.5, 180,
+      `hsl(${hue},50%,40%)`, 2.5, 0.005);
+  }
+
+  // Particles & floats
+  updateParticles();
+  updateFloatTexts();
+  updateShake();
+
+  // Bird chirps
+  birdTimer--;
+  if (birdTimer <= 0) {
+    playBirdChirp();
+    birdTimer = 180 + Math.random() * 360; // every 3-8 seconds
+  }
+
+  // Update HUD
+  updateHUD();
+}
+
+// ==================== RENDER ====================
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(screenShakeX, screenShakeY);
+
+  // Background
+  if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0);
+
+  // Dappled sunlight patches (animated)
+  ctx.globalCompositeOperation = 'overlay';
+  for (let i = 0; i < 6; i++) {
+    const sx = (treeDefs[i].x * W + Math.sin(frame * 0.008 + i) * 15);
+    const sy = (treeDefs[i].y * H + 30 + Math.cos(frame * 0.006 + i * 2) * 10);
+    const sr = 20 + Math.sin(frame * 0.01 + i * 3) * 5;
+    const sunGrad = ctx.createRadialGradient(sx, sy, sr * 0.2, sx, sy, sr);
+    sunGrad.addColorStop(0, 'rgba(255,255,200,0.06)');
+    sunGrad.addColorStop(1, 'rgba(255,255,200,0)');
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Animated pond ripples
+  const pondX = W * 0.75, pondY = H * 0.65;
+  for (let r = 0; r < 3; r++) {
+    const ripR = 15 + r * 10 + Math.sin(frame * 0.03 + r) * 5;
+    ctx.strokeStyle = `rgba(120,200,230,${0.12 - r * 0.03})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(pondX, pondY, ripR, ripR * 0.65, 0, 0, TAU);
+    ctx.stroke();
+  }
+
+  // Collect all drawable entities for y-sorting
+  const drawables = [];
+
+  // Trees (split into behind/infront based on y)
+  for (const td of treeDefs) {
+    drawables.push({ y: td.y * H + 25 * td.s, type: 'tree', data: td });
+  }
+
+  // Nuts
+  for (const nut of nuts) {
+    if (!nut.collected) drawables.push({ y: nut.y, type: 'nut', data: nut });
+  }
+
+  // Foxes
+  for (const fox of foxes) {
+    drawables.push({ y: fox.y, type: 'fox', data: fox });
+  }
+
+  // Squirrel
+  drawables.push({ y: sq.y, type: 'squirrel' });
+
+  // Deployed lanterns
+  for (const lan of lanterns) {
+    drawables.push({ y: lan.y, type: 'lantern', data: lan });
+  }
+
+  // Sort by y
+  drawables.sort((a, b) => a.y - b.y);
+
+  // Draw lantern beams first (behind everything)
+  for (const lan of lanterns) {
+    drawDeployedLantern(lan);
+  }
+
+  // Draw sorted entities
+  for (const d of drawables) {
+    if (d.type === 'tree') {
+      const td = d.data;
+      drawTree(td.x * W, td.y * H, td.s);
+    } else if (d.type === 'nut') {
+      drawNut(d.data);
+    } else if (d.type === 'fox') {
+      drawFox(d.data);
+    } else if (d.type === 'squirrel') {
+      drawSquirrel();
+    }
+    // Lantern body is drawn in drawDeployedLantern
+  }
+
+  // Particles
+  drawParticles();
+
+  // Butterflies (above entities, below UI)
+  drawButterflies();
+
+  // Floating text
+  drawFloatTexts();
+
+  // Vignette
+  const vigGrad = ctx.createRadialGradient(W/2, H/2, W*0.25, W/2, H/2, W*0.75);
+  vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  vigGrad.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = vigGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Power bar
+  drawPowerBar();
+
+  // Lantern stock icons
+  drawLanternStock();
+
+  ctx.restore();
+
+  // Game over overlay
+  if (gameOver) drawGameOver();
+}
+
+function drawPowerBar() {
+  if (magicTimer > 0) {
+    const barW = W * 0.5;
+    const barH = 8;
+    const barX = (W - barW) / 2;
+    const barY = H - 18;
+    const progress = magicTimer / MAGIC_DURATION;
+    const hue = (frame * 10) % 360;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+    const grad = ctx.createLinearGradient(barX, 0, barX + barW * progress, 0);
+    grad.addColorStop(0, `hsl(${hue},100%,55%)`);
+    grad.addColorStop(0.5, `hsl(${(hue+60)%360},100%,55%)`);
+    grad.addColorStop(1, `hsl(${(hue+120)%360},100%,55%)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(barX, barY, barW * progress, barH);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('MAGIC', W / 2, barY - 3);
+  } else if (treacleTimer > 0) {
+    const barW = W * 0.5;
+    const barH = 8;
+    const barX = (W - barW) / 2;
+    const barY = H - 18;
+    const progress = treacleTimer / TREACLE_DURATION;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+    ctx.fillStyle = `rgba(212,160,23,${0.5 + progress * 0.5})`;
+    ctx.fillRect(barX, barY, barW * progress, barH);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('TREACLE', W / 2, barY - 3);
+  }
+}
+
+function drawLanternStock() {
+  ctx.textAlign = 'right';
+  ctx.font = '16px sans-serif';
+  for (let i = 0; i < MAX_LANTERNS; i++) {
+    ctx.globalAlpha = i < lanternStock ? 1 : 0.2;
+    ctx.fillText('🏮', W - 8 - i * 22, 22);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawGameOver() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff4757';
+  ctx.font = `bold ${W * 0.08}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillText('GAME OVER', W / 2, H * 0.4);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = `bold ${W * 0.05}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillText(`Score: ${score}`, W / 2, H * 0.55);
+
+  ctx.fillStyle = '#8bba6f';
+  ctx.font = `${W * 0.03}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillText(`Level ${level} reached`, W / 2, H * 0.65);
+
+  ctx.fillStyle = '#ccc';
+  ctx.font = `${W * 0.025}px 'Segoe UI',system-ui,sans-serif`;
+  ctx.fillText('Press R or tap Restart', W / 2, H * 0.78);
+
+  ctx.restore();
+}
+
+// ==================== HUD ====================
+function updateHUD() {
+  scoreEl.textContent = score;
+  levelEl.textContent = level;
+  let hearts = '';
+  for (let i = 0; i < 3; i++) hearts += i < lives ? '♥' : '♡';
+  livesEl.textContent = hearts;
+
+  if (combo > 1 && comboTimer > 0) {
+    const mult = Math.min(combo, 5);
+    comboEl.style.opacity = '1';
+    comboEl.textContent = `x${mult} COMBO`;
+    const hue = mult >= 5 ? (frame * 8) % 360 : mult >= 3 ? 45 : 0;
+    comboEl.style.color = mult >= 5 ? `hsl(${hue},100%,65%)` : mult >= 3 ? '#ffd700' : '#fff';
+  } else {
+    comboEl.style.opacity = '0';
+  }
+}
+
+function updateLanternUI() {
+  lanternCountEl.textContent = lanternStock;
+}
+
+function showMessage(msg) {
+  msgBar.textContent = msg;
+  if (msgTimeout) clearTimeout(msgTimeout);
+  msgTimeout = setTimeout(() => { msgBar.innerHTML = '&nbsp;'; }, 3000);
+}
+
+// ==================== RESIZE ====================
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  const maxW = Math.min(750, window.innerWidth - 12);
+  const maxH = window.innerHeight * 0.55;
+  let cw = maxW;
+  let ch = Math.round(maxW / ASPECT);
+  if (ch > maxH) { ch = maxH; cw = Math.round(ch * ASPECT); }
+
+  W = cw;
+  H = ch;
+  canvas.width = W;
+  canvas.height = H;
+  scale = W / BASE_W;
+
+  generateBackground();
+  if (butterflies.length === 0) initButterflies();
+}
+
+// ==================== INPUT ====================
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if ((e.key === ' ' || e.key === 'l' || e.key === 'L') && gameStarted && !gameOver) {
+    e.preventDefault();
+    deployLantern();
+  }
+  if ((e.key === 'r' || e.key === 'R') && gameOver) {
+    restartGame();
+  }
+  if (e.key === 'm' || e.key === 'M') toggleMute();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Touch joystick
+joystickZone.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const touch = e.changedTouches[0];
+  joyTouchId = touch.identifier;
+  const rect = joystickZone.getBoundingClientRect();
+  joyCenter.x = rect.left + rect.width / 2;
+  joyCenter.y = rect.top + rect.height / 2;
+}, { passive: false });
+
+joystickZone.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const touch of e.changedTouches) {
+    if (touch.identifier === joyTouchId) {
+      const dx = touch.clientX - joyCenter.x;
+      const dy = touch.clientY - joyCenter.y;
+      const maxR = 38;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      joyMag = Math.min(dist / maxR, 1);
+      joyAngle = Math.atan2(dy, dx);
+      const clampDist = Math.min(dist, maxR);
+      const nx = (dx / (dist || 1)) * clampDist;
+      const ny = (dy / (dist || 1)) * clampDist;
+      joystickThumb.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+    }
+  }
+}, { passive: false });
+
+const resetJoystick = e => {
+  for (const touch of e.changedTouches) {
+    if (touch.identifier === joyTouchId) {
+      joyTouchId = null;
+      joyMag = 0;
+      joystickThumb.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+};
+joystickZone.addEventListener('touchend', resetJoystick, { passive: false });
+joystickZone.addEventListener('touchcancel', resetJoystick, { passive: false });
+
+// Lantern button
+lanternBtn.addEventListener('touchstart', e => { e.preventDefault(); deployLantern(); }, { passive: false });
+lanternBtn.addEventListener('mousedown', e => { e.preventDefault(); deployLantern(); });
+
+// Mute & restart buttons
+muteBtn.addEventListener('click', toggleMute);
+restartBtn.addEventListener('click', () => { if (gameStarted) restartGame(); });
+
+// Prevent scrolling on canvas
+canvas.style.touchAction = 'none';
+canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+
+window.addEventListener('resize', resize);
+
+// ==================== GAME LIFECYCLE ====================
+function restartGame() {
+  score = 0; level = 1; lives = 3;
+  gameOver = false;
+  magicTimer = 0; treacleTimer = 0; invincTimer = 0;
+  lanternStock = 3;
+  combo = 0; comboTimer = 0;
+  frame = 0;
+  foxSpawnTimer = 90;
+  treacleDiv.style.background = 'transparent';
+  sq.x = W / 2; sq.y = H / 2;
+  sq.vx = 0; sq.vy = 0;
+  foxes.length = 0;
+  lanterns.length = 0;
+  particles.length = 0;
+  floatTexts.length = 0;
+  spawnNuts();
+  updateLanternUI();
+  updateHUD();
+  if (!seqInterval) startMusic();
+  showMessage('Go!');
+}
+
+function startGame() {
+  gameStarted = true;
+  startOverlay.style.display = 'none';
+  initAudio();
+  resize();
+  restartGame();
+  startMusic();
+  loop();
+}
+
+// ==================== MAIN LOOP ====================
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ==================== INIT ====================
+playBtn.addEventListener('click', startGame);
+
+// Initial resize for start screen
+resize();
+</script>
+</body>
+</html>
