@@ -84,8 +84,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.W = this.scale.width;
-    this.H = this.scale.height;
+    this.scale.refresh();
+    this.W = this.scale.width  || window.innerWidth;
+    this.H = this.scale.height || window.innerHeight;
 
     // Background
     const bgRenderer = new BackgroundRenderer(this);
@@ -225,8 +226,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private restart() {
-    this.W = this.scale.width;
-    this.H = this.scale.height;
+    this.scale.refresh();
+    this.W = this.scale.width  || window.innerWidth;
+    this.H = this.scale.height || window.innerHeight;
 
     // Clean up
     this.foxes.forEach(f => f.destroy());

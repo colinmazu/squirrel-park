@@ -7,13 +7,16 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    const cx = this.scale.width / 2;
-    const cy = this.scale.height / 2;
+    this.scale.refresh();
+    const W = this.scale.width  || window.innerWidth;
+    const H = this.scale.height || window.innerHeight;
+    const cx = W / 2;
+    const cy = H / 2;
 
     const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     // Dark overlay
-    this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x080f04, 0.92);
+    this.add.rectangle(cx, cy, W, H, 0x080f04, 0.92);
 
     // Title
     this.add.text(cx, cy - 95, '🌳 Squirrel Park 🌳', {
