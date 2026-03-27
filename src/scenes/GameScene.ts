@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-  BASE_W, BASE_H, TREE_DEFS,
+  TREE_DEFS,
   NUT_BASE_COUNT, NUTS_PER_LEVEL, NUT_COLLECT_RADIUS, NUT_MAGNET_RADIUS, NUT_MAGNET_STRENGTH,
   NUT_PROB_LANTERN, NUT_PROB_TREACLE, NUT_PROB_MAGIC,
   FOX_BASE_SPEED, FOX_SPEED_PER_LEVEL, FOX_SPAWN_BASE_MS, FOX_SPAWN_REDUCTION_PER_LEVEL,
@@ -32,6 +32,10 @@ import { AmbientSounds } from '@/audio/AmbientSounds';
 import { AudioManager } from '@/audio/AudioManager';
 
 export class GameScene extends Phaser.Scene {
+  // Canvas dimensions (set from scale manager, updated on restart)
+  private W = 750;
+  private H = 422;
+
   // State
   private frame = 0;
   private score = 0;
@@ -80,16 +84,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.W = this.scale.width;
+    this.H = this.scale.height;
+
     // Background
     const bgRenderer = new BackgroundRenderer(this);
-    bgRenderer.create(BASE_W, BASE_H);
+    bgRenderer.create(this.W, this.H);
 
     // Trees (drawn each frame for y-sorting, but static ones on a graphics layer)
     this.treeGfx = this.add.graphics();
     this.treeGfx.setDepth(15);
 
     // Effects
-    this.effects = new EffectsRenderer(this, BASE_W, BASE_H);
+    this.effects = new EffectsRenderer(this, this.W, this.H);
 
     // Managers
     this.input2 = new InputManager();
@@ -101,22 +108,22 @@ export class GameScene extends Phaser.Scene {
     this.shaker = new ScreenShake(this.cameras.main);
 
     // Squirrel
-    this.squirrel = new Squirrel(this, BASE_W / 2, BASE_H / 2);
+    this.squirrel = new Squirrel(this, this.W / 2, this.H / 2);
 
     // Butterflies
     for (let i = 0; i < 5; i++) {
       this.butterflies.push(new Butterfly(
         this,
-        Math.random() * BASE_W,
-        Math.random() * BASE_H * 0.7 + BASE_H * 0.1,
-        i, BASE_W, BASE_H,
+        Math.random() * this.W,
+        Math.random() * this.H * 0.7 + this.H * 0.1,
+        i, this.W, this.H,
       ));
     }
 
     // UI
-    this.powerBar = new PowerBar(this, BASE_W, BASE_H);
-    this.lanternDisplay = new LanternStockDisplay(this, BASE_W);
-    this.messageBar = new MessageBar(this, BASE_W, BASE_H);
+    this.powerBar = new PowerBar(this, this.W, this.H);
+    this.lanternDisplay = new LanternStockDisplay(this, this.W);
+    this.messageBar = new MessageBar(this, this.W, this.H);
 
     // HUD
     this.createHUD();
@@ -165,7 +172,7 @@ export class GameScene extends Phaser.Scene {
     }).setDepth(96);
 
     // Mute button
-    this.muteBtn = this.add.text(BASE_W - 70, 6, 'Sound: ON', {
+    this.muteBtn = this.add.text(this.W - 70, 6, 'Sound: ON', {
       ...hudStyle, fontSize: '11px', color: '#ccc',
       backgroundColor: 'rgba(255,255,255,0.08)',
       padding: { x: 6, y: 3 },
@@ -181,20 +188,20 @@ export class GameScene extends Phaser.Scene {
     this.gameOverContainer.setDepth(200);
     this.gameOverContainer.setVisible(false);
 
-    const bg = this.add.rectangle(BASE_W / 2, BASE_H / 2, BASE_W, BASE_H, 0x000000, 0.7);
-    const title = this.add.text(BASE_W / 2, BASE_H * 0.4, 'GAME OVER', {
+    const bg = this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x000000, 0.7);
+    const title = this.add.text(this.W / 2, this.H * 0.4, 'GAME OVER', {
       fontSize: '36px', color: '#ff4757', fontStyle: 'bold',
       fontFamily: "'Segoe UI', system-ui, sans-serif",
     }).setOrigin(0.5);
-    const scoreLabel = this.add.text(BASE_W / 2, BASE_H * 0.55, '', {
+    const scoreLabel = this.add.text(this.W / 2, this.H * 0.55, '', {
       fontSize: '22px', color: '#ffd700', fontStyle: 'bold',
       fontFamily: "'Segoe UI', system-ui, sans-serif",
     }).setOrigin(0.5);
-    const levelLabel = this.add.text(BASE_W / 2, BASE_H * 0.65, '', {
+    const levelLabel = this.add.text(this.W / 2, this.H * 0.65, '', {
       fontSize: '14px', color: '#8bba6f',
       fontFamily: "'Segoe UI', system-ui, sans-serif",
     }).setOrigin(0.5);
-    const restartLabel = this.add.text(BASE_W / 2, BASE_H * 0.78, 'Press R or tap to restart', {
+    const restartLabel = this.add.text(this.W / 2, this.H * 0.78, 'Press R or tap to restart', {
       fontSize: '12px', color: '#ccc',
       fontFamily: "'Segoe UI', system-ui, sans-serif",
     }).setOrigin(0.5);
@@ -218,6 +225,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private restart() {
+    this.W = this.scale.width;
+    this.H = this.scale.height;
+
     // Clean up
     this.foxes.forEach(f => f.destroy());
     this.foxes = [];
@@ -239,8 +249,8 @@ export class GameScene extends Phaser.Scene {
     this.frame = 0;
     this.foxSpawnTimer = 90;
 
-    this.squirrel.x = BASE_W / 2;
-    this.squirrel.y = BASE_H / 2;
+    this.squirrel.x = this.W / 2;
+    this.squirrel.y = this.H / 2;
     this.squirrel.vx = 0;
     this.squirrel.vy = 0;
     this.squirrel.mode = 'normal';
@@ -272,8 +282,8 @@ export class GameScene extends Phaser.Scene {
 
       let nx = 0, ny = 0;
       for (let attempt = 0; attempt < 20; attempt++) {
-        nx = 40 + Math.random() * (BASE_W - 80);
-        ny = 40 + Math.random() * (BASE_H - 80);
+        nx = 40 + Math.random() * (this.W - 80);
+        ny = 40 + Math.random() * (this.H - 80);
         const dsSq = distSq(nx, ny, this.squirrel.x, this.squirrel.y);
         if (dsSq < 2500) continue;
         let valid = true;
@@ -293,10 +303,10 @@ export class GameScene extends Phaser.Scene {
 
     const side = Math.floor(Math.random() * 4);
     let fx = 0, fy = 0;
-    if (side === 0) { fx = Math.random() * BASE_W; fy = -20; }
-    else if (side === 1) { fx = BASE_W + 20; fy = Math.random() * BASE_H; }
-    else if (side === 2) { fx = Math.random() * BASE_W; fy = BASE_H + 20; }
-    else { fx = -20; fy = Math.random() * BASE_H; }
+    if (side === 0) { fx = Math.random() * this.W; fy = -20; }
+    else if (side === 1) { fx = this.W + 20; fy = Math.random() * this.H; }
+    else if (side === 2) { fx = Math.random() * this.W; fy = this.H + 20; }
+    else { fx = -20; fy = Math.random() * this.H; }
 
     this.foxes.push(new Fox(this, fx, fy));
   }
@@ -304,7 +314,7 @@ export class GameScene extends Phaser.Scene {
   private deployLantern() {
     if (this.lanternStock <= 0 || this.gameOver) return;
     this.lanternStock--;
-    this.lanterns.push(new Lantern(this, this.squirrel.x, this.squirrel.y, BASE_W, BASE_H));
+    this.lanterns.push(new Lantern(this, this.squirrel.x, this.squirrel.y, this.W, this.H));
     SfxPlayer.lanternDeploy();
     this.messageBar.show('Lantern deployed!');
     this.particles.burst(this.squirrel.x, this.squirrel.y, 15, 0x00ced1, 3, 30, 2);
@@ -393,8 +403,8 @@ export class GameScene extends Phaser.Scene {
       if (this.lanternStock < MAX_LANTERNS) this.lanternStock++;
       this.lanternDisplay.update(this.lanternStock);
       this.messageBar.show(`Level ${this.level}!`);
-      this.floatTexts.add(BASE_W / 2, BASE_H / 2, `LEVEL ${this.level}`, '#7fdbff', 24);
-      this.particles.rainbowBurst(BASE_W / 2, BASE_H / 2, 30);
+      this.floatTexts.add(this.W / 2, this.H / 2, `LEVEL ${this.level}`, '#7fdbff', 24);
+      this.particles.rainbowBurst(this.W / 2, this.H / 2, 30);
       this.spawnNuts();
     }
   }
@@ -438,7 +448,7 @@ export class GameScene extends Phaser.Scene {
     // Squirrel movement
     const mov = this.input2.getMovement();
     this.squirrel.move(mov.x, mov.y);
-    this.squirrel.clamp(BASE_W, BASE_H);
+    this.squirrel.clamp(this.W, this.H);
 
     // Fox spawning
     this.foxSpawnTimer--;
@@ -495,8 +505,8 @@ export class GameScene extends Phaser.Scene {
         if (lan.isOnBeam(fox.x, fox.y)) {
           fox.stun(LANTERN_STUN_FRAMES);
           fox.bounceFrom(lan.x, lan.y, LANTERN_BOUNCE_DIST);
-          fox.x = Phaser.Math.Clamp(fox.x, 0, BASE_W);
-          fox.y = Phaser.Math.Clamp(fox.y, 0, BASE_H);
+          fox.x = Phaser.Math.Clamp(fox.x, 0, this.W);
+          fox.y = Phaser.Math.Clamp(fox.y, 0, this.H);
           SfxPlayer.foxBeamHit();
           this.particles.burst(fox.x, fox.y, 12, 0x00ced1, 3, 25, 2);
           this.particles.burst(fox.x, fox.y, 6, 0xffffff, 2, 15, 1.5);
@@ -507,7 +517,7 @@ export class GameScene extends Phaser.Scene {
     // Clean up off-screen stunned foxes
     for (let i = this.foxes.length - 1; i >= 0; i--) {
       const fox = this.foxes[i];
-      if (fox.stunTimer > 0 && (fox.x < -100 || fox.x > BASE_W + 100 || fox.y < -100 || fox.y > BASE_H + 100)) {
+      if (fox.stunTimer > 0 && (fox.x < -100 || fox.x > this.W + 100 || fox.y < -100 || fox.y > this.H + 100)) {
         fox.destroy();
         this.foxes.splice(i, 1);
       }
@@ -521,7 +531,7 @@ export class GameScene extends Phaser.Scene {
 
     // Ambient leaves
     if (this.frame % 40 === 0) {
-      const lx = Math.random() * BASE_W;
+      const lx = Math.random() * this.W;
       const hue = (80 + Math.random() * 60) / 360;
       const color = Phaser.Display.Color.HSLToColor(hue, 0.5, 0.4);
       this.particles.emit(lx, -5, (Math.random() - 0.5) * 0.8, 0.3 + Math.random() * 0.5, 180, color.color, 2.5, 0.005);
@@ -587,7 +597,7 @@ export class GameScene extends Phaser.Scene {
     // Draw trees (y-sorted with entities would be ideal, but simplified here)
     this.treeGfx.clear();
     for (const td of TREE_DEFS) {
-      drawTree(this.treeGfx, td.x * BASE_W, td.y * BASE_H, td.s);
+      drawTree(this.treeGfx, td.x * this.W, td.y * this.H, td.s);
     }
 
     // Draw particles

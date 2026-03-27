@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { AudioManager } from '@/audio/AudioManager';
-import { BASE_W, BASE_H } from '@/config';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -8,13 +7,13 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    const cx = BASE_W / 2;
-    const cy = BASE_H / 2;
+    const cx = this.scale.width / 2;
+    const cy = this.scale.height / 2;
 
     const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     // Dark overlay
-    this.add.rectangle(cx, cy, BASE_W, BASE_H, 0x080f04, 0.92);
+    this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x080f04, 0.92);
 
     // Title
     this.add.text(cx, cy - 95, '🌳 Squirrel Park 🌳', {
