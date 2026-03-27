@@ -17,7 +17,7 @@ export class DebugScene extends Phaser.Scene {
     const W = this.scale.width;   // 750
     const H = this.scale.height;  // 422
     const panelW = 460;
-    const panelH = 240;
+    const panelH = 310;
     const px = (W - panelW) / 2;  // 145
     const py = (H - panelH) / 2;  // 91
     const cx = W / 2;
@@ -75,6 +75,16 @@ export class DebugScene extends Phaser.Scene {
     this.makeBtn(cx - 80, py + 178, 118, 28, '■ Stop  [S]',     0x3a1010, () => MusicSequencer.stop());
     this.makeBtn(cx + 80, py + 178, 118, 28, '↺ Restart  [R]',  0x103030, () => MusicSequencer.start());
 
+    this.hRule(px, py + 205, panelW);
+
+    // ── PICKUPS ───────────────────────────────────────
+    this.sectionLabel(px + 16, py + 214, 'PICKUPS');
+
+    const spawnFirstAid = () => {
+      this.scene.get('GameScene').events.emit('debug:spawnFirstAid');
+    };
+    this.makeBtn(cx, py + 248, 180, 30, '♥ Spawn First Aid  [F]', 0x3a0a14, spawnFirstAid);
+
     // Footer / close hint
     this.add.text(cx, py + panelH - 13, 'T  or  ESC  —  resume game', {
       fontSize: '9px', color: '#333355', fontFamily: 'monospace',
@@ -88,6 +98,7 @@ export class DebugScene extends Phaser.Scene {
     });
     kb.addKey('S').on('down', () => MusicSequencer.stop());
     kb.addKey('R').on('down', () => MusicSequencer.start());
+    kb.addKey('F').on('down', () => spawnFirstAid());
     kb.addKey('T').on('down', () => this.close());
     kb.addKey('ESC').on('down', () => this.close());
 

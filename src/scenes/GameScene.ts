@@ -141,6 +141,13 @@ export class GameScene extends Phaser.Scene {
 
     this.messageBar.show('Go!');
     this.foxSpawnTimer = 90;
+
+    // Debug event: spawn a first aid pack near the squirrel
+    this.events.on('debug:spawnFirstAid', () => {
+      const nx = Phaser.Math.Clamp(this.squirrel.x + 70, 40, this.W - 40);
+      const ny = Phaser.Math.Clamp(this.squirrel.y, 40, this.H - 40);
+      this.nuts.push(new Nut(this, nx, ny, 'firstaid'));
+    });
   }
 
   private createHUD() {
