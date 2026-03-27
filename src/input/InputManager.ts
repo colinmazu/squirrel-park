@@ -7,6 +7,7 @@ export class InputManager {
   private lKey!: Phaser.Input.Keyboard.Key;
   private rKey!: Phaser.Input.Keyboard.Key;
   private mKey!: Phaser.Input.Keyboard.Key;
+  private tKey!: Phaser.Input.Keyboard.Key;
 
   // Joystick
   private joyActive = false;
@@ -40,6 +41,7 @@ export class InputManager {
     this.lKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
     this.rKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.mKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    this.tKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
 
     // Detect touch device
     this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -163,5 +165,9 @@ export class InputManager {
 
   isMutePressed(): boolean {
     return Phaser.Input.Keyboard.JustDown(this.mKey);
+  }
+
+  isDebugTreaclePressed(): boolean {
+    return Phaser.Input.Keyboard.JustDown(this.tKey);
   }
 }

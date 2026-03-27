@@ -3,22 +3,19 @@ import { TREE_DEFS, FLOWER_COLORS, TAU } from '@/config';
 
 export class BackgroundRenderer {
   private scene: Phaser.Scene;
-  private rt!: Phaser.GameObjects.RenderTexture;
   private gfx!: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
-  create(w: number, h: number): Phaser.GameObjects.RenderTexture {
+  create(w: number, h: number): Phaser.GameObjects.Graphics {
     this.gfx = this.scene.add.graphics();
-    this.rt = this.scene.add.renderTexture(0, 0, w, h);
-    this.rt.setDepth(-100);
+    this.gfx.setDepth(-100);
 
     this.drawBackground(w, h);
 
-    this.gfx.destroy();
-    return this.rt;
+    return this.gfx;
   }
 
   private drawBackground(w: number, h: number) {
@@ -120,7 +117,5 @@ export class BackgroundRenderer {
       g.fillEllipse(td.x * w + 5, td.y * h + 30 * td.s, 50 * td.s, 20 * td.s);
     }
 
-    // Stamp the graphics onto the render texture
-    this.rt.draw(g);
   }
 }

@@ -3,7 +3,8 @@ import { AudioManager } from './AudioManager';
 import { BPM } from '@/config';
 import {
   MELODY_NORMAL, MELODY_MAGIC, MELODY_TREACLE,
-  BASS_LINE, PERC_PATTERN, PAD_CHORDS,
+  BASS_LINE, TREACLE_BASS_LINE, PERC_PATTERN,
+  PAD_CHORDS, TREACLE_PAD_CHORDS,
 } from './noteFrequencies';
 
 export type MusicMode = 'normal' | 'magic' | 'treacle';
@@ -115,8 +116,9 @@ class MusicSequencerSingleton {
       this.melodySynth.triggerAttackRelease(freq, '16n', time);
     }
 
-    // Bass
-    const bassNote = BASS_LINE[this.step % BASS_LINE.length];
+    // Bass (treacle uses its own bass line following chord roots)
+    const bassArr = this._mode === 'treacle' ? TREACLE_BASS_LINE : BASS_LINE;
+    const bassNote = bassArr[this.step % bassArr.length];
     if (bassNote) {
       this.bassSynth.triggerAttackRelease(bassNote, '16n', time);
     }
@@ -132,9 +134,10 @@ class MusicSequencerSingleton {
       this.hihatSynth.triggerAttackRelease('32n', time);
     }
 
-    // Pad chord changes (every 2 steps)
+    // Pad chord changes (every 2 steps) - treacle uses I-vi-IV-V
+    const padChords = this._mode === 'treacle' ? TREACLE_PAD_CHORDS : PAD_CHORDS;
     const chordIdx = Math.floor((this.step % 16) / 2);
-    const chord = PAD_CHORDS[chordIdx];
+    const chord = padChords[chordIdx];
     if (this.step % 2 === 0) {
       for (let i = 0; i < 3; i++) {
         this.padSynths[i].triggerAttackRelease(chord[i], '4n', time);
@@ -146,6 +149,9 @@ class MusicSequencerSingleton {
 
   setMode(mode: MusicMode) {
     this._mode = mode;
+    // Ramp BPM: treacle slows everything down to feel thick and sticky
+    const targetBpm = mode === 'treacle' ? 100 : BPM;
+    Tone.getTransport().bpm.rampTo(targetBpm, 1.2);
   }
 
   start() {
@@ -154,6 +160,7 @@ class MusicSequencerSingleton {
       this._started = true;
     }
     this.step = 0;
+    Tone.getTransport().bpm.value = BPM; // reset before any ramps
     this.loop.start(0);
     Tone.getTransport().start();
   }

@@ -414,6 +414,10 @@ export class GameScene extends Phaser.Scene {
       this.muteBtn.setText(muted ? 'Sound: OFF' : 'Sound: ON');
     }
     if (this.input2.isDeployPressed()) this.deployLantern();
+    if (this.input2.isDebugTreaclePressed()) {
+      this.scene.pause();
+      this.scene.launch('Debug', { level: this.level, lives: this.lives });
+    }
 
     // Power-up timers
     this.powerUps.update();
