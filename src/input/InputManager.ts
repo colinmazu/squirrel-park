@@ -9,16 +9,13 @@ export class InputManager {
   private mKey!: Phaser.Input.Keyboard.Key;
   private tKey!: Phaser.Input.Keyboard.Key;
 
-  // Joystick
+  // Touch drag
   private joyActive = false;
   private joyAngle = 0;
   private joyMag = 0;
-  private joyZone: Phaser.GameObjects.Container | null = null;
-  private joyThumb: Phaser.GameObjects.Arc | null = null;
-  private joyBase: Phaser.GameObjects.Arc | null = null;
   private joyCenterX = 0;
   private joyCenterY = 0;
-  private joyMaxR = 38;
+  private joyMaxR = 60;
 
   // Lantern deploy flag
   public deployPressed = false;
@@ -54,74 +51,42 @@ export class InputManager {
   private createJoystick(scene: Phaser.Scene) {
     const gameW = scene.scale.width;
     const gameH = scene.scale.height;
-    const cx = 70;
-    const cy = gameH - 70;
 
-    // Joystick base
-    this.joyBase = scene.add.circle(cx, cy, 50, 0xffffff, 0.06);
-    this.joyBase.setStrokeStyle(2, 0xffffff, 0.1);
-    this.joyBase.setDepth(200);
-
-    // Joystick thumb
-    this.joyThumb = scene.add.circle(cx, cy, 18, 0xffffff, 0.15);
-    this.joyThumb.setStrokeStyle(2, 0xffffff, 0.2);
-    this.joyThumb.setDepth(201);
-
-    this.joyCenterX = cx;
-    this.joyCenterY = cy;
-
-    // Lantern button (right side)
+    // Lantern button (bottom-right)
     const btnX = gameW - 60;
     const btnY = gameH - 60;
-    const lanternBtnBg = scene.add.circle(btnX, btnY, 32, 0x00aacc, 0.15);
-    lanternBtnBg.setStrokeStyle(2, 0x00ccee, 0.3);
-    lanternBtnBg.setDepth(200);
+    const lanternBtnBg = scene.add.circle(btnX, btnY, 36, 0x00aacc, 0.3);
+    lanternBtnBg.setStrokeStyle(2, 0x00ccee, 0.7);
+    lanternBtnBg.setDepth(200).setScrollFactor(0);
     lanternBtnBg.setInteractive();
     lanternBtnBg.on('pointerdown', () => { this.deployPressed = true; });
 
-    const lanternLabel = scene.add.text(btnX, btnY, '🏮', {
-      fontSize: '20px',
-    }).setOrigin(0.5).setDepth(201);
+    scene.add.text(btnX, btnY, '🏮', { fontSize: '22px' })
+      .setOrigin(0.5).setDepth(201).setScrollFactor(0);
 
-    // Touch handling for joystick via scene pointer events
+    // Drag-anywhere movement — anchor where finger first touches
     scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.x < gameW / 2) {
-        this.joyActive = true;
-        this.joyCenterX = pointer.x;
-        this.joyCenterY = pointer.y;
-        if (this.joyBase) {
-          this.joyBase.setPosition(pointer.x, pointer.y);
-          this.joyBase.setVisible(true);
-        }
-        if (this.joyThumb) {
-          this.joyThumb.setPosition(pointer.x, pointer.y);
-          this.joyThumb.setVisible(true);
-        }
-      }
+      const dx = pointer.x - btnX;
+      const dy = pointer.y - btnY;
+      if (Math.sqrt(dx * dx + dy * dy) < 44) return; // ignore lantern button area
+      this.joyActive = true;
+      this.joyCenterX = pointer.x;
+      this.joyCenterY = pointer.y;
+      this.joyMag = 0;
     });
 
     scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.joyActive || !pointer.isDown) return;
-      if (pointer.x >= gameW / 2) return; // only track left side
-
       const dx = pointer.x - this.joyCenterX;
       const dy = pointer.y - this.joyCenterY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       this.joyMag = Math.min(dist / this.joyMaxR, 1);
       this.joyAngle = Math.atan2(dy, dx);
-
-      const clampDist = Math.min(dist, this.joyMaxR);
-      const nx = this.joyCenterX + (dx / (dist || 1)) * clampDist;
-      const ny = this.joyCenterY + (dy / (dist || 1)) * clampDist;
-      if (this.joyThumb) this.joyThumb.setPosition(nx, ny);
     });
 
     scene.input.on('pointerup', () => {
       this.joyActive = false;
       this.joyMag = 0;
-      if (this.joyThumb && this.joyBase) {
-        this.joyThumb.setPosition(this.joyCenterX, this.joyCenterY);
-      }
     });
   }
 
