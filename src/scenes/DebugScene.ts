@@ -161,7 +161,7 @@ export class DebugScene extends Phaser.Scene {
   }
 
   private close() {
-    this.scene.resume('Game');
+    this.scene.resume('GameScene');
     this.scene.stop();
   }
 }
