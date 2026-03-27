@@ -27,4 +27,10 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// On mobile, orientationchange fires before the viewport has actually resized.
+// Wait for the browser to settle, then tell Phaser to refit the canvas.
+const onOrientationChange = () => setTimeout(() => game.scale.refresh(), 300);
+window.addEventListener('orientationchange', onOrientationChange);
+window.addEventListener('resize', () => game.scale.refresh());

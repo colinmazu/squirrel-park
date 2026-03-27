@@ -21,9 +21,50 @@
       align-items: center;
       justify-content: center;
     }
+    #portrait-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #0d1f08;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      color: #7fdb4f;
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      padding: 32px;
+    }
+    #portrait-overlay .icon {
+      font-size: 64px;
+      animation: spin 2s ease-in-out infinite;
+    }
+    #portrait-overlay h2 {
+      font-size: 22px;
+      font-weight: bold;
+    }
+    #portrait-overlay p {
+      font-size: 14px;
+      color: #8bba6f;
+    }
+    @keyframes spin {
+      0%, 100% { transform: rotate(0deg); }
+      40%       { transform: rotate(90deg); }
+      60%       { transform: rotate(90deg); }
+    }
+    @media (orientation: portrait) and (max-height: 600px),
+           (orientation: portrait) and (max-width: 768px) {
+      #portrait-overlay { display: flex; }
+    }
   </style>
 </head>
 <body>
+  <div id="portrait-overlay">
+    <div class="icon">📱</div>
+    <h2>Rotate your device</h2>
+    <p>Squirrel Park plays best in landscape mode</p>
+  </div>
   <div id="game-container"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
