@@ -30,16 +30,11 @@ class AudioManagerSingleton {
     // Music bus
     this.musicBus = new Tone.Channel({ volume: -5 });
     this.musicBus.connect(compressor);
-    this.musicBus.send('reverb', -14);
+    this.musicBus.connect(this.reverb);
 
     // SFX bus
     this.sfxBus = new Tone.Channel({ volume: -2 });
     this.sfxBus.connect(compressor);
-
-    // Reverb receive
-    const revReceive = new Tone.Channel();
-    Tone.Destination.context.createGain(); // ensure context running
-    this.musicBus.connect(this.reverb);
 
     Tone.getDestination().volume.value = -3;
 

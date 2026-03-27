@@ -154,7 +154,8 @@ class MusicSequencerSingleton {
     Tone.getTransport().bpm.rampTo(targetBpm, 1.2);
   }
 
-  start() {
+  async start() {
+    await AudioManager.init();
     if (!this._started) {
       this.init();
       this._started = true;
