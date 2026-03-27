@@ -2,10 +2,10 @@ import Phaser from 'phaser';
 import {
   TREE_DEFS,
   NUT_BASE_COUNT, NUTS_PER_LEVEL, NUT_COLLECT_RADIUS, NUT_MAGNET_RADIUS, NUT_MAGNET_STRENGTH,
-  NUT_PROB_LANTERN, NUT_PROB_TREACLE, NUT_PROB_MAGIC,
+  NUT_PROB_LANTERN, NUT_PROB_FIRSTAID, NUT_PROB_TREACLE, NUT_PROB_MAGIC,
   FOX_BASE_SPEED, FOX_SPEED_PER_LEVEL, FOX_SPAWN_BASE_MS, FOX_SPAWN_REDUCTION_PER_LEVEL,
   FOX_SPAWN_MIN_MS, FOX_BASE_MAX,
-  SQUIRREL_FOX_HIT_DIST_SQ, MAX_LANTERNS,
+  SQUIRREL_FOX_HIT_DIST_SQ, MAX_LANTERNS, MAX_LIVES,
   LANTERN_STUN_FRAMES, LANTERN_BOUNCE_DIST,
 } from '@/config';
 import { distSq } from '@/utils/MathUtils';
@@ -277,9 +277,10 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) {
       const r = Math.random();
       let type: NutType;
-      if (r < NUT_PROB_LANTERN) type = 'lantern';
-      else if (r < NUT_PROB_TREACLE) type = 'treacle';
-      else if (r < NUT_PROB_MAGIC) type = 'magic';
+      if (r < NUT_PROB_LANTERN)       type = 'lantern';
+      else if (r < NUT_PROB_FIRSTAID) type = 'firstaid';
+      else if (r < NUT_PROB_TREACLE)  type = 'treacle';
+      else if (r < NUT_PROB_MAGIC)    type = 'magic';
       else type = 'normal';
 
       let nx = 0, ny = 0;
@@ -369,13 +370,27 @@ export class GameScene extends Phaser.Scene {
         this.particles.burst(nut.x, nut.y, 12, 0x00ced1, 2.5, 30, 2);
         msg = mult > 1 ? `Lantern! x${mult} +${points}` : 'Lantern collected! +15';
         break;
+
+      case 'firstaid':
+        SfxPlayer.nutCollect();
+        if (this.lives < MAX_LIVES) {
+          this.lives++;
+          this.particles.burst(nut.x, nut.y, 16, 0xff4466, 2.5, 30, 2);
+          this.particles.burst(nut.x, nut.y, 8, 0xffffff, 1.5, 20, 1.5);
+          msg = mult > 1 ? `First Aid! x${mult} +${points} ♥` : 'First Aid! +1 life ♥';
+        } else {
+          this.particles.burst(nut.x, nut.y, 8, 0xff4466, 2, 20, 1.5);
+          msg = 'Full health! +20';
+        }
+        break;
     }
 
     if (mult > 1) SfxPlayer.combo(mult);
 
-    const color = nut.nutType === 'magic' ? '#ff44ff' :
-                  nut.nutType === 'treacle' ? '#ffd700' :
-                  nut.nutType === 'lantern' ? '#00ced1' : '#fff';
+    const color = nut.nutType === 'magic'    ? '#ff44ff' :
+                  nut.nutType === 'treacle'  ? '#ffd700' :
+                  nut.nutType === 'lantern'  ? '#00ced1' :
+                  nut.nutType === 'firstaid' ? '#ff4466' : '#fff';
     const txt = mult > 1 ? `x${mult} +${points}` : `+${points}`;
     this.floatTexts.add(nut.x, nut.y - 10, txt, color, mult > 1 ? 16 + mult * 2 : 14);
     this.messageBar.show(msg);
@@ -621,7 +636,7 @@ export class GameScene extends Phaser.Scene {
     this.levelText.setText(String(this.level));
 
     let hearts = '';
-    for (let i = 0; i < 3; i++) hearts += i < this.lives ? '♥' : '♡';
+    for (let i = 0; i < Math.max(3, this.lives); i++) hearts += i < this.lives ? '♥' : '♡';
     this.livesText.setText(hearts);
 
     if (this.combo.count > 1 && this.combo.timer > 0) {

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { TAU } from '@/config';
 
-export type NutType = 'normal' | 'magic' | 'treacle' | 'lantern';
+export type NutType = 'normal' | 'magic' | 'treacle' | 'lantern' | 'firstaid';
 
 export class Nut extends Phaser.GameObjects.Container {
   public nutType: NutType;
@@ -26,10 +26,11 @@ export class Nut extends Phaser.GameObjects.Container {
     g.clear();
 
     switch (this.nutType) {
-      case 'normal': this.drawNormal(g, frame); break;
-      case 'magic': this.drawMagic(g, frame); break;
-      case 'treacle': this.drawTreacle(g, frame); break;
-      case 'lantern': this.drawLantern(g, frame); break;
+      case 'normal':   this.drawNormal(g, frame); break;
+      case 'magic':    this.drawMagic(g, frame); break;
+      case 'treacle':  this.drawTreacle(g, frame); break;
+      case 'lantern':  this.drawLantern(g, frame); break;
+      case 'firstaid': this.drawFirstAid(g, frame); break;
     }
   }
 
@@ -134,12 +135,34 @@ export class Nut extends Phaser.GameObjects.Container {
     g.fillRect(-1, 6, 2, 4);
   }
 
+  private drawFirstAid(g: Phaser.GameObjects.Graphics, frame: number) {
+    const bob = Math.sin(frame * 0.065 + this.phase) * 3;
+    const pulse = 0.85 + Math.sin(frame * 0.1) * 0.15;
+    g.setPosition(0, bob);
+
+    // Outer glow
+    g.fillStyle(0xff4466, 0.18 * pulse);
+    g.fillCircle(0, 0, 14);
+
+    // White box
+    g.fillStyle(0xffffff);
+    g.fillRoundedRect(-8, -8, 16, 16, 3);
+    g.lineStyle(1.5, 0xdd2244, 0.7);
+    g.strokeRoundedRect(-8, -8, 16, 16, 3);
+
+    // Red cross
+    g.fillStyle(0xee1133);
+    g.fillRect(-2, -6, 4, 12); // vertical
+    g.fillRect(-6, -2, 12, 4); // horizontal
+  }
+
   getPoints(): number {
     switch (this.nutType) {
-      case 'normal': return 10;
-      case 'magic': return 25;
-      case 'treacle': return 5;
-      case 'lantern': return 15;
+      case 'normal':   return 10;
+      case 'magic':    return 25;
+      case 'treacle':  return 5;
+      case 'lantern':  return 15;
+      case 'firstaid': return 20;
     }
   }
 

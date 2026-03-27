@@ -46,10 +46,14 @@ export const NUT_MAGNET_RADIUS = 40;
 export const NUT_MAGNET_STRENGTH = 1.5;
 
 // Nut type probabilities (cumulative)
-export const NUT_PROB_LANTERN = 0.07;
-export const NUT_PROB_TREACLE = 0.20;
-export const NUT_PROB_MAGIC = 0.34;
+export const NUT_PROB_LANTERN  = 0.07;
+export const NUT_PROB_FIRSTAID = 0.12; // 5% chance
+export const NUT_PROB_TREACLE  = 0.25;
+export const NUT_PROB_MAGIC    = 0.39;
 // remainder = normal
+
+// Lives
+export const MAX_LIVES = 5;
 
 // Collision
 export const SQUIRREL_FOX_HIT_DIST_SQ = 400; // 20px radius squared
