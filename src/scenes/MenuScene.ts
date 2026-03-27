@@ -78,13 +78,15 @@ export class MenuScene extends Phaser.Scene {
     btnBg.on('pointerover', () => btnBg.setFillStyle(0x5da04e));
     btnBg.on('pointerout',  () => btnBg.setFillStyle(0x4a8c3f));
 
-    btnBg.on('pointerdown', async () => {
+    btnBg.on('pointerdown', () => {
       // Request landscape lock on mobile (needs user gesture; silently ignored if unsupported)
       if (isTouch && screen.orientation && 'lock' in screen.orientation) {
         (screen.orientation as ScreenOrientation & { lock: (o: string) => Promise<void> })
           .lock('landscape').catch(() => {});
       }
-      await AudioManager.init();
+      // Start audio in the background — if it fails (iOS restrictions etc.) the game
+      // starts anyway. Never let audio init block or break navigation.
+      AudioManager.init().catch(() => {});
       this.scene.start('GameScene');
     });
   }
