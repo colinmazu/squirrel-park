@@ -11,6 +11,7 @@ export type MusicMode = 'normal' | 'magic' | 'treacle';
 
 class MusicSequencerSingleton {
   private melodySynth!: Tone.Synth;
+  private melodyVibrato!: Tone.Vibrato;
   private bassSynth!: Tone.Synth;
   private padSynths: Tone.Synth[] = [];
   private kickSynth!: Tone.MembraneSynth;
@@ -29,65 +30,70 @@ class MusicSequencerSingleton {
 
     Tone.getTransport().bpm.value = BPM;
 
-    // Melody voice
+    // Melody — fat square with vibrato (SNES-era thick lead)
+    this.melodyVibrato = new Tone.Vibrato({ frequency: 5.5, depth: 0.06 }).connect(AudioManager.musicBus);
     this.melodySynth = new Tone.Synth({
-      oscillator: { type: 'square' },
-      envelope: { attack: 0.005, decay: 0.12, sustain: 0, release: 0.05 },
-      volume: -18,
-    }).connect(AudioManager.musicBus);
-
-    // Bass voice
-    this.bassSynth = new Tone.Synth({
-      oscillator: { type: 'triangle' },
-      envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.05 },
+      oscillator: { type: 'fatsquare', count: 3, spread: 15 } as any,
+      envelope: { attack: 0.008, decay: 0.15, sustain: 0.04, release: 0.12 },
       volume: -17,
-    }).connect(AudioManager.musicBus);
+    }).connect(this.melodyVibrato);
 
-    // Pad voices (3 oscillators for chord)
+    // Bass — warm filtered sawtooth
+    const bassFilter = new Tone.Filter({ frequency: 900, type: 'lowpass', Q: 1.5 });
+    bassFilter.connect(AudioManager.musicBus);
+    this.bassSynth = new Tone.Synth({
+      oscillator: { type: 'fatsawtooth', count: 2, spread: 15 } as any,
+      envelope: { attack: 0.01, decay: 0.25, sustain: 0.12, release: 0.2 },
+      volume: -14,
+    }).connect(bassFilter);
+
+    // Pad voices — detuned sawtooth through chorus
+    const padChorus = new Tone.Chorus({ frequency: 1.2, delayTime: 2.5, depth: 0.35 }).connect(AudioManager.musicBus);
+    padChorus.start();
     for (let i = 0; i < 3; i++) {
       const synth = new Tone.Synth({
-        oscillator: { type: 'sawtooth' },
-        envelope: { attack: 0.3, decay: 0.5, sustain: 0.6, release: 0.8 },
-        volume: -30,
+        oscillator: { type: 'fatsawtooth', count: 2, spread: 25 } as any,
+        envelope: { attack: 0.35, decay: 0.7, sustain: 0.55, release: 1.4 },
+        volume: -29,
       });
-      const filter = new Tone.Filter({ frequency: 600, type: 'lowpass', Q: 0.5 });
+      const filter = new Tone.Filter({ frequency: 550, type: 'lowpass', Q: 0.7 });
       synth.connect(filter);
-      filter.connect(AudioManager.musicBus);
+      filter.connect(padChorus);
       this.padSynths.push(synth);
     }
 
-    // Kick
+    // Kick — punchy with sub rumble
     this.kickSynth = new Tone.MembraneSynth({
-      pitchDecay: 0.08,
-      octaves: 4,
-      envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
-      volume: -9,
+      pitchDecay: 0.12,
+      octaves: 5,
+      envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.1 },
+      volume: -8,
     }).connect(AudioManager.musicBus);
 
-    // Snare (noise)
+    // Snare — noise filtered to mid band
     this.snareSynth = new Tone.NoiseSynth({
       noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.03 },
-      volume: -15,
+      envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.04 },
+      volume: -14,
     });
-    const snareFilter = new Tone.Filter({ frequency: 400, type: 'highpass' });
+    const snareFilter = new Tone.Filter({ frequency: 600, type: 'bandpass', Q: 0.8 });
     this.snareSynth.connect(snareFilter);
     snareFilter.connect(AudioManager.musicBus);
 
-    // Snare body
+    // Snare body (tonal crack)
     this.snareBody = new Tone.Synth({
       oscillator: { type: 'square' },
-      envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.02 },
-      volume: -24,
+      envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.03 },
+      volume: -22,
     }).connect(AudioManager.musicBus);
 
-    // Hihat
+    // Hihat — crisp and high-passed
     this.hihatSynth = new Tone.NoiseSynth({
       noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 },
-      volume: -23,
+      envelope: { attack: 0.001, decay: 0.025, sustain: 0, release: 0.008 },
+      volume: -24,
     });
-    const hihatFilter = new Tone.Filter({ frequency: 7000, type: 'highpass' });
+    const hihatFilter = new Tone.Filter({ frequency: 9000, type: 'highpass' });
     this.hihatSynth.connect(hihatFilter);
     hihatFilter.connect(AudioManager.musicBus);
 
@@ -110,13 +116,13 @@ class MusicSequencerSingleton {
     const melArr = melodies[this._mode];
     const melNote = melArr[this.step % melArr.length];
     if (melNote) {
-      this.melodySynth.oscillator.type = this._mode === 'treacle' ? 'triangle' : 'square';
+      this.melodySynth.oscillator.type = (this._mode === 'treacle' ? 'fattriangle' : 'fatsquare') as any;
       let freq = melNote;
-      if (this._mode === 'magic') freq *= Math.pow(2, 5 / 1200); // +5 cents detune
+      if (this._mode === 'magic') freq *= Math.pow(2, 5 / 1200);
       this.melodySynth.triggerAttackRelease(freq, '16n', time);
     }
 
-    // Bass (treacle uses its own bass line following chord roots)
+    // Bass
     const bassArr = this._mode === 'treacle' ? TREACLE_BASS_LINE : BASS_LINE;
     const bassNote = bassArr[this.step % bassArr.length];
     if (bassNote) {
@@ -134,7 +140,7 @@ class MusicSequencerSingleton {
       this.hihatSynth.triggerAttackRelease('32n', time);
     }
 
-    // Pad chord changes (every 2 steps) - treacle uses I-vi-IV-V
+    // Pad chord changes (every 2 steps)
     const padChords = this._mode === 'treacle' ? TREACLE_PAD_CHORDS : PAD_CHORDS;
     const chordIdx = Math.floor((this.step % 16) / 2);
     const chord = padChords[chordIdx];
@@ -149,9 +155,13 @@ class MusicSequencerSingleton {
 
   setMode(mode: MusicMode) {
     this._mode = mode;
-    // Ramp BPM: treacle slows everything down to feel thick and sticky
     const targetBpm = mode === 'treacle' ? 100 : BPM;
     Tone.getTransport().bpm.rampTo(targetBpm, 1.2);
+    if (this.melodyVibrato) {
+      this.melodyVibrato.depth.rampTo(
+        mode === 'treacle' ? 0.02 : mode === 'magic' ? 0.14 : 0.06, 0.5,
+      );
+    }
   }
 
   async start() {
@@ -161,7 +171,7 @@ class MusicSequencerSingleton {
       this._started = true;
     }
     this.step = 0;
-    Tone.getTransport().bpm.value = BPM; // reset before any ramps
+    Tone.getTransport().bpm.value = BPM;
     this.loop.start(0);
     Tone.getTransport().start();
   }

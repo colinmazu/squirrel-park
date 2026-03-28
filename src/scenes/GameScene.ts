@@ -76,6 +76,10 @@ export class GameScene extends Phaser.Scene {
   // Fox spawning
   private foxSpawnTimer = 0;
 
+  // Nut hint system
+  private lastCollectFrame = 0;
+  private hintGfx!: Phaser.GameObjects.Graphics;
+
   // Game over overlay
   private gameOverContainer!: Phaser.GameObjects.Container;
 
@@ -131,6 +135,10 @@ export class GameScene extends Phaser.Scene {
 
     // Game over overlay (hidden initially)
     this.createGameOverOverlay();
+
+    // Hint arrow overlay
+    this.hintGfx = this.add.graphics();
+    this.hintGfx.setDepth(80);
 
     // Spawn initial nuts
     this.spawnNuts();
@@ -279,6 +287,7 @@ export class GameScene extends Phaser.Scene {
     // Clear existing
     this.nuts.forEach(n => n.destroy());
     this.nuts = [];
+    this.lastCollectFrame = this.frame;
 
     const count = NUT_BASE_COUNT + this.level * NUTS_PER_LEVEL;
     for (let i = 0; i < count; i++) {
@@ -335,6 +344,7 @@ export class GameScene extends Phaser.Scene {
   private collectNut(nut: Nut) {
     nut.collected = true;
     nut.setVisible(false);
+    this.lastCollectFrame = this.frame;
 
     this.combo.hit();
     const mult = this.combo.getMultiplier();
@@ -590,8 +600,72 @@ export class GameScene extends Phaser.Scene {
     // Draw entities
     this.drawEntities();
 
+    // Nut hints if idle
+    this.drawHints();
+
     // Update HUD
     this.updateHUD();
+  }
+
+  private drawHints() {
+    this.hintGfx.clear();
+
+    const elapsed = this.frame - this.lastCollectFrame;
+    const HINT_DELAY = 480;         // ~8 s at 60 fps — show subtle arrow
+    const STRONG_HINT_DELAY = 900;  // ~15 s — add glow on the nut
+
+    if (elapsed < HINT_DELAY) return;
+
+    // Find nearest uncollected nut
+    let nearest: Nut | null = null;
+    let nearestDist = Infinity;
+    for (const nut of this.nuts) {
+      if (nut.collected) continue;
+      const d = distSq(this.squirrel.x, this.squirrel.y, nut.x, nut.y);
+      if (d < nearestDist) { nearestDist = d; nearest = nut; }
+    }
+    if (!nearest) return;
+
+    const dx = nearest.x - this.squirrel.x;
+    const dy = nearest.y - this.squirrel.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = dx / dist;
+    const ny = dy / dist;
+
+    const pulse = 0.5 + Math.sin(this.frame * 0.08) * 0.3;
+    const strength = elapsed >= STRONG_HINT_DELAY ? 1
+      : (elapsed - HINT_DELAY) / (STRONG_HINT_DELAY - HINT_DELAY);
+    const alpha = pulse * (0.35 + strength * 0.5);
+
+    // Arrow pointing from squirrel toward nearest nut
+    const arrowDist = 35;
+    const ax = this.squirrel.x + nx * arrowDist;
+    const ay = this.squirrel.y + ny * arrowDist;
+    const tipX = ax + nx * 10;
+    const tipY = ay + ny * 10;
+    const leftX = ax - ny * 5;
+    const leftY = ay + nx * 5;
+    const rightX = ax + ny * 5;
+    const rightY = ay - nx * 5;
+
+    this.hintGfx.fillStyle(0xffd700, alpha);
+    this.hintGfx.fillTriangle(tipX, tipY, leftX, leftY, rightX, rightY);
+
+    // Strong hint: pulsing glow on the nut itself
+    if (elapsed >= STRONG_HINT_DELAY) {
+      const glowR = 18 + Math.sin(this.frame * 0.06) * 5;
+      this.hintGfx.fillStyle(0xffd700, 0.08 * pulse);
+      this.hintGfx.fillCircle(nearest.x, nearest.y, glowR * 2);
+      this.hintGfx.fillStyle(0xffd700, 0.15 * pulse);
+      this.hintGfx.fillCircle(nearest.x, nearest.y, glowR);
+      this.hintGfx.lineStyle(2, 0xffd700, 0.5 * pulse);
+      this.hintGfx.strokeCircle(nearest.x, nearest.y, glowR);
+    }
+
+    // One-time message
+    if (elapsed === HINT_DELAY) {
+      this.messageBar.show('Look for the golden arrow!');
+    }
   }
 
   private drawEntities() {
