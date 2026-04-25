@@ -47,10 +47,17 @@ export const NUT_MAGNET_STRENGTH = 1.5;
 
 // Nut type probabilities (cumulative)
 export const NUT_PROB_LANTERN  = 0.07;
-export const NUT_PROB_FIRSTAID = 0.12; // 5% chance
-export const NUT_PROB_TREACLE  = 0.25;
-export const NUT_PROB_MAGIC    = 0.39;
+export const NUT_PROB_FIRSTAID = 0.12;
+export const NUT_PROB_CARROT   = 0.18; // 6% chance — triggers Gloria sequence
+export const NUT_PROB_TREACLE  = 0.30;
+export const NUT_PROB_MAGIC    = 0.42;
 // remainder = normal
+
+// Gloria the Rabbit sequence
+export const GLORIA_DURATION = 720;        // total active time (12s @ 60fps)
+export const GLORIA_HOP_SPEED = 2.4;
+export const WORMHOLE_RADIUS = 18;         // teleport trigger
+export const WORMHOLE_DURATION = 540;      // wormholes stay active 9s
 
 // Lives
 export const MAX_LIVES = 5;

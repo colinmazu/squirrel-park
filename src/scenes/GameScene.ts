@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import {
   TREE_DEFS,
   NUT_BASE_COUNT, NUTS_PER_LEVEL, NUT_COLLECT_RADIUS, NUT_MAGNET_RADIUS, NUT_MAGNET_STRENGTH,
-  NUT_PROB_LANTERN, NUT_PROB_FIRSTAID, NUT_PROB_TREACLE, NUT_PROB_MAGIC,
+  NUT_PROB_LANTERN, NUT_PROB_FIRSTAID, NUT_PROB_CARROT, NUT_PROB_TREACLE, NUT_PROB_MAGIC,
   FOX_BASE_SPEED, FOX_SPEED_PER_LEVEL, FOX_SPAWN_BASE_MS, FOX_SPAWN_REDUCTION_PER_LEVEL,
   FOX_SPAWN_MIN_MS, FOX_BASE_MAX,
   SQUIRREL_FOX_HIT_DIST_SQ, MAX_LANTERNS, MAX_LIVES,
@@ -14,6 +14,8 @@ import { Fox } from '@/entities/Fox';
 import { Nut, NutType } from '@/entities/Nut';
 import { Lantern } from '@/entities/Lantern';
 import { Butterfly } from '@/entities/Butterfly';
+import { Gloria } from '@/entities/Gloria';
+import { Wormhole } from '@/entities/Wormhole';
 import { BackgroundRenderer } from '@/graphics/BackgroundRenderer';
 import { drawTree } from '@/graphics/TreeRenderer';
 import { EffectsRenderer } from '@/graphics/EffectsRenderer';
@@ -50,6 +52,10 @@ export class GameScene extends Phaser.Scene {
   private nuts: Nut[] = [];
   private lanterns: Lantern[] = [];
   private butterflies: Butterfly[] = [];
+  private wormholes: Wormhole[] = [];
+  private gloria: Gloria | null = null;
+  private gloriaActive = false;
+  private prevMusicMode: 'normal' | 'magic' | 'treacle' = 'normal';
 
   // Managers
   private input2!: InputManager;
@@ -252,6 +258,10 @@ export class GameScene extends Phaser.Scene {
     this.nuts = [];
     this.lanterns.forEach(l => l.destroy());
     this.lanterns = [];
+    this.wormholes.forEach(w => w.destroy());
+    this.wormholes = [];
+    if (this.gloria) { this.gloria.destroy(); this.gloria = null; }
+    this.gloriaActive = false;
     this.particles.reset();
     this.floatTexts.reset();
     this.combo.reset();
@@ -295,6 +305,7 @@ export class GameScene extends Phaser.Scene {
       let type: NutType;
       if (r < NUT_PROB_LANTERN)       type = 'lantern';
       else if (r < NUT_PROB_FIRSTAID) type = 'firstaid';
+      else if (r < NUT_PROB_CARROT)   type = 'carrot';
       else if (r < NUT_PROB_TREACLE)  type = 'treacle';
       else if (r < NUT_PROB_MAGIC)    type = 'magic';
       else type = 'normal';
@@ -328,6 +339,168 @@ export class GameScene extends Phaser.Scene {
     else { fx = -20; fy = Math.random() * this.H; }
 
     this.foxes.push(new Fox(this, fx, fy));
+  }
+
+  private startGloriaSequence(entryX: number, entryY: number) {
+    if (this.gloriaActive) return; // already running
+
+    // Pick a random exit location well away from the entry
+    let exitX = 0, exitY = 0;
+    for (let i = 0; i < 25; i++) {
+      exitX = 60 + Math.random() * (this.W - 120);
+      exitY = 60 + Math.random() * (this.H - 120);
+      const dx = exitX - entryX;
+      const dy = exitY - entryY;
+      if (dx * dx + dy * dy > 22500) break; // at least ~150px away
+    }
+
+    // Create both wormholes (inactive until Gloria digs them)
+    const entry = new Wormhole(this, entryX, entryY);
+    const exit  = new Wormhole(this, exitX, exitY);
+    this.wormholes.push(entry, exit);
+
+    // Spawn Gloria
+    this.gloria = new Gloria(this, entryX, entryY, exitX, exitY, this.W, this.H);
+    this.gloriaActive = true;
+
+    // Switch music to Gloria mode (remember previous)
+    const cur = MusicSequencer.mode;
+    if (cur === 'normal' || cur === 'magic' || cur === 'treacle') {
+      this.prevMusicMode = cur;
+    }
+    MusicSequencer.setMode('gloria');
+
+    this.messageBar.show('Gloria the Rabbit appears!');
+    this.floatTexts.add(this.W / 2, this.H * 0.25, 'GLORIA!', '#ff8a3c', 22);
+  }
+
+  private updateGloria() {
+    if (!this.gloria) return;
+    const g = this.gloria;
+    const prevState = g.state;
+    g.update();
+
+    // State transitions: activate wormholes at the right moments
+    if (prevState !== g.state) {
+      if (g.state === 'submerged') {
+        // Entry hole now active (Gloria has finished digging it)
+        if (this.wormholes[0]) this.wormholes[0].active = true;
+        this.particles.burst(g.entryX, g.entryY, 14, 0x6b4828, 2.5, 25, 2);
+      } else if (g.state === 'leaving') {
+        // Exit hole now active (Gloria popped out)
+        if (this.wormholes[1]) this.wormholes[1].active = true;
+        this.particles.burst(g.exitX, g.exitY, 14, 0x6b4828, 2.5, 25, 2);
+      }
+    }
+
+    if (g.state === 'done') {
+      g.destroy();
+      this.gloria = null;
+    }
+  }
+
+  private updateWormholes() {
+    // Tick + cull
+    for (let i = this.wormholes.length - 1; i >= 0; i--) {
+      const w = this.wormholes[i];
+      w.update();
+      if (w.isExpired()) {
+        w.destroy();
+        this.wormholes.splice(i, 1);
+      }
+    }
+
+    // Squirrel teleport — when standing on an active hole, jump to its partner
+    if (this.wormholes.length === 2) {
+      const a = this.wormholes[0];
+      const b = this.wormholes[1];
+      if (a.contains(this.squirrel.x, this.squirrel.y)) {
+        this.teleport(b, a);
+      } else if (b.contains(this.squirrel.x, this.squirrel.y)) {
+        this.teleport(a, b);
+      }
+    }
+
+    // End Gloria sequence when both holes are gone
+    if (this.gloriaActive && this.wormholes.length === 0 && !this.gloria) {
+      this.gloriaActive = false;
+      MusicSequencer.setMode(this.prevMusicMode);
+    }
+  }
+
+  private teleport(target: Wormhole, source: Wormhole) {
+    // ── WHIRLY TIME-TRAVEL SOUND ──────────────────────────────────────────
+    SfxPlayer.wormholeWhirl();
+
+    // ── Departure burst ───────────────────────────────────────────────────
+    for (let i = 0; i < 4; i++) {
+      this.particles.burst(this.squirrel.x, this.squirrel.y, 18, 0xa060ff, 3 + i, 35, 2.5);
+    }
+    this.particles.burst(this.squirrel.x, this.squirrel.y, 12, 0xffffff, 2, 25, 2);
+    this.particles.burst(this.squirrel.x, this.squirrel.y, 14, 0xff80ff, 2.5, 30, 2);
+
+    // ── MASSIVE SCREEN SHAKE ──────────────────────────────────────────────
+    this.shaker.shake(80, 700);
+
+    // ── CHROMATIC FLASH OVERLAY ───────────────────────────────────────────
+    // Pulsing purple/white flash that fades over ~600ms
+    const flash = this.add.rectangle(
+      this.W / 2, this.H / 2, this.W, this.H, 0xa060ff, 0.85,
+    );
+    flash.setDepth(95);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 600,
+      ease: 'Cubic.easeOut',
+      onComplete: () => flash.destroy(),
+    });
+    // Quick white sub-flash on top
+    const whiteFlash = this.add.rectangle(
+      this.W / 2, this.H / 2, this.W, this.H, 0xffffff, 0.5,
+    );
+    whiteFlash.setDepth(96);
+    this.tweens.add({
+      targets: whiteFlash,
+      alpha: 0,
+      duration: 220,
+      ease: 'Quad.easeOut',
+      onComplete: () => whiteFlash.destroy(),
+    });
+
+    // ── CAMERA ZOOM PUNCH ─────────────────────────────────────────────────
+    // Quick zoom-in then zoom-out for that "warp" feel
+    const cam = this.cameras.main;
+    this.tweens.add({
+      targets: cam,
+      zoom: 1.25,
+      duration: 180,
+      ease: 'Quad.easeOut',
+      yoyo: true,
+      onComplete: () => cam.setZoom(1),
+    });
+
+    // ── TELEPORT THE SQUIRREL ─────────────────────────────────────────────
+    this.squirrel.x = target.x;
+    this.squirrel.y = target.y;
+    this.squirrel.vx = 0;
+    this.squirrel.vy = 0;
+
+    // ── Arrival burst ─────────────────────────────────────────────────────
+    for (let i = 0; i < 4; i++) {
+      this.particles.burst(target.x, target.y, 18, 0xa060ff, 3 + i, 35, 2.5);
+    }
+    this.particles.burst(target.x, target.y, 12, 0xff80ff, 2.5, 30, 2);
+    this.particles.burst(target.x, target.y, 8, 0xffffff, 2, 25, 1.8);
+
+    // ── Brief invincibility so foxes don't murder the squirrel mid-warp ──
+    this.powerUps.activateInvincibility();
+    this.squirrel.invincible = true;
+
+    // Cooldown both so we don't bounce back and forth
+    source.cooldown = 45;
+    target.cooldown = 45;
+    this.floatTexts.add(target.x, target.y - 24, 'WHOOSH!', '#a060ff', 22);
   }
 
   private deployLantern() {
@@ -388,6 +561,14 @@ export class GameScene extends Phaser.Scene {
         msg = mult > 1 ? `Lantern! x${mult} +${points}` : 'Lantern collected! +15';
         break;
 
+      case 'carrot':
+        SfxPlayer.magicCollect();
+        this.particles.burst(nut.x, nut.y, 18, 0xff8a3c, 2.8, 32, 2);
+        this.particles.burst(nut.x, nut.y, 10, 0x4abc38, 2.0, 25, 1.8);
+        this.startGloriaSequence(nut.x, nut.y);
+        msg = mult > 1 ? `GLORIA! x${mult} +${points}` : 'GLORIA! Carrot collected!';
+        break;
+
       case 'firstaid':
         SfxPlayer.nutCollect();
         if (this.lives < MAX_LIVES) {
@@ -407,7 +588,8 @@ export class GameScene extends Phaser.Scene {
     const color = nut.nutType === 'magic'    ? '#ff44ff' :
                   nut.nutType === 'treacle'  ? '#ffd700' :
                   nut.nutType === 'lantern'  ? '#00ced1' :
-                  nut.nutType === 'firstaid' ? '#ff4466' : '#fff';
+                  nut.nutType === 'firstaid' ? '#ff4466' :
+                  nut.nutType === 'carrot'   ? '#ff8a3c' : '#fff';
     const txt = mult > 1 ? `x${mult} +${points}` : `+${points}`;
     this.floatTexts.add(nut.x, nut.y - 10, txt, color, mult > 1 ? 16 + mult * 2 : 14);
     this.messageBar.show(msg);
@@ -523,6 +705,10 @@ export class GameScene extends Phaser.Scene {
         break;
       }
     }
+
+    // Gloria + wormhole sequence
+    this.updateGloria();
+    this.updateWormholes();
 
     // Lantern updates
     for (let i = this.lanterns.length - 1; i >= 0; i--) {
@@ -691,6 +877,12 @@ export class GameScene extends Phaser.Scene {
     for (const b of this.butterflies) {
       b.draw();
     }
+
+    // Draw wormholes (under entities)
+    for (const w of this.wormholes) w.draw();
+
+    // Draw Gloria
+    if (this.gloria) this.gloria.draw();
 
     // Draw trees (y-sorted with entities would be ideal, but simplified here)
     this.treeGfx.clear();

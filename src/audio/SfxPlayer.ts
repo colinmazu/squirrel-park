@@ -166,6 +166,62 @@ export const SfxPlayer = {
     setTimeout(() => synth.dispose(), 3000);
   },
 
+  wormholeWhirl() {
+    if (!AudioManager.initialized) return;
+
+    // ── Layer 1: ascending warbling pitch sweep (the "whirly" core) ────────
+    const whirl = new Tone.Synth({
+      oscillator: { type: 'sawtooth' },
+      envelope: { attack: 0.02, decay: 0.6, sustain: 0.4, release: 0.3 },
+      volume: -10,
+    });
+    const whirlVibrato = new Tone.Vibrato({ frequency: 18, depth: 0.6 });
+    whirl.connect(whirlVibrato);
+    whirlVibrato.connect(AudioManager.sfxBus);
+    whirl.triggerAttackRelease(120, '0.7');
+    whirl.frequency.rampTo(1800, 0.55);
+    setTimeout(() => { whirl.dispose(); whirlVibrato.dispose(); }, 1500);
+
+    // ── Layer 2: descending counter-sweep for that "wormhole" feel ─────────
+    const counter = new Tone.Synth({
+      oscillator: { type: 'square' },
+      envelope: { attack: 0.01, decay: 0.5, sustain: 0.3, release: 0.2 },
+      volume: -16,
+    });
+    const counterTremolo = new Tone.Tremolo({ frequency: 24, depth: 0.8 }).start();
+    counter.connect(counterTremolo);
+    counterTremolo.connect(AudioManager.sfxBus);
+    counter.triggerAttackRelease(2400, '0.6', '+0.05');
+    counter.frequency.rampTo(80, 0.55);
+    setTimeout(() => { counter.dispose(); counterTremolo.dispose(); }, 1500);
+
+    // ── Layer 3: filtered noise whoosh ─────────────────────────────────────
+    const noise = new Tone.Noise('white').start();
+    const noiseFilter = new Tone.Filter({ frequency: 200, type: 'bandpass', Q: 4 });
+    const noiseGain = new Tone.Gain(0.18);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(AudioManager.sfxBus);
+    // Sweep the filter for that "rushing through space" feel
+    noiseFilter.frequency.rampTo(6000, 0.5);
+    noiseGain.gain.rampTo(0, 0.65);
+    setTimeout(() => {
+      noise.stop(); noise.dispose(); noiseFilter.dispose(); noiseGain.dispose();
+    }, 800);
+
+    // ── Layer 4: shimmery bell ping for arrival ────────────────────────────
+    [N.G5, N.B5, N.D6, N.G6, N.B6].forEach((f, i) => {
+      const t = Tone.now() + 0.45 + i * 0.04;
+      const s = new Tone.Synth({
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.005, decay: 0.4, sustain: 0, release: 0.15 },
+        volume: -16,
+      }).connect(AudioManager.sfxBus);
+      s.triggerAttackRelease(f, '0.3', t);
+      setTimeout(() => s.dispose(), 1500);
+    });
+  },
+
   combo(level: number) {
     const freq = N.C6 * Math.pow(2, Math.min(level, 5) / 12);
     fatSynth(freq, '0.06', 0.09);

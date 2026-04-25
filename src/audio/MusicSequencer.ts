@@ -2,12 +2,13 @@ import * as Tone from 'tone';
 import { AudioManager } from './AudioManager';
 import { BPM } from '@/config';
 import {
-  MELODY_NORMAL, MELODY_MAGIC, MELODY_TREACLE,
-  BASS_LINE, TREACLE_BASS_LINE, PERC_PATTERN,
-  PAD_CHORDS, TREACLE_PAD_CHORDS,
+  MELODY_NORMAL, MELODY_MAGIC, MELODY_TREACLE, MELODY_GLORIA,
+  BASS_LINE, TREACLE_BASS_LINE, GLORIA_BASS_LINE,
+  PERC_PATTERN, GLORIA_PERC_PATTERN,
+  PAD_CHORDS, TREACLE_PAD_CHORDS, GLORIA_PAD_CHORDS,
 } from './noteFrequencies';
 
-export type MusicMode = 'normal' | 'magic' | 'treacle';
+export type MusicMode = 'normal' | 'magic' | 'treacle' | 'gloria';
 
 class MusicSequencerSingleton {
   private melodySynth!: Tone.Synth;
@@ -110,27 +111,34 @@ class MusicSequencerSingleton {
       normal: MELODY_NORMAL,
       magic: MELODY_MAGIC,
       treacle: MELODY_TREACLE,
+      gloria: MELODY_GLORIA,
     };
 
     // Melody
     const melArr = melodies[this._mode];
     const melNote = melArr[this.step % melArr.length];
     if (melNote) {
-      this.melodySynth.oscillator.type = (this._mode === 'treacle' ? 'fattriangle' : 'fatsquare') as any;
+      const oscType = this._mode === 'treacle' ? 'fattriangle'
+                    : this._mode === 'gloria'  ? 'fatsawtooth'
+                    : 'fatsquare';
+      this.melodySynth.oscillator.type = oscType as any;
       let freq = melNote;
       if (this._mode === 'magic') freq *= Math.pow(2, 5 / 1200);
       this.melodySynth.triggerAttackRelease(freq, '16n', time);
     }
 
     // Bass
-    const bassArr = this._mode === 'treacle' ? TREACLE_BASS_LINE : BASS_LINE;
+    const bassArr = this._mode === 'treacle' ? TREACLE_BASS_LINE
+                  : this._mode === 'gloria'  ? GLORIA_BASS_LINE
+                  : BASS_LINE;
     const bassNote = bassArr[this.step % bassArr.length];
     if (bassNote) {
       this.bassSynth.triggerAttackRelease(bassNote, '16n', time);
     }
 
     // Percussion
-    const perc = PERC_PATTERN[this.step % PERC_PATTERN.length];
+    const percArr = this._mode === 'gloria' ? GLORIA_PERC_PATTERN : PERC_PATTERN;
+    const perc = percArr[this.step % percArr.length];
     if (perc === 'K') {
       this.kickSynth.triggerAttackRelease('C1', '8n', time);
     } else if (perc === 'S') {
@@ -141,7 +149,9 @@ class MusicSequencerSingleton {
     }
 
     // Pad chord changes (every 2 steps)
-    const padChords = this._mode === 'treacle' ? TREACLE_PAD_CHORDS : PAD_CHORDS;
+    const padChords = this._mode === 'treacle' ? TREACLE_PAD_CHORDS
+                    : this._mode === 'gloria'  ? GLORIA_PAD_CHORDS
+                    : PAD_CHORDS;
     const chordIdx = Math.floor((this.step % 16) / 2);
     const chord = padChords[chordIdx];
     if (this.step % 2 === 0) {
@@ -155,12 +165,16 @@ class MusicSequencerSingleton {
 
   setMode(mode: MusicMode) {
     this._mode = mode;
-    const targetBpm = mode === 'treacle' ? 100 : BPM;
-    Tone.getTransport().bpm.rampTo(targetBpm, 1.2);
+    const targetBpm = mode === 'treacle' ? 100
+                    : mode === 'gloria'  ? 168  // pumped 80s anthem tempo
+                    : BPM;
+    Tone.getTransport().bpm.rampTo(targetBpm, 0.8);
     if (this.melodyVibrato) {
-      this.melodyVibrato.depth.rampTo(
-        mode === 'treacle' ? 0.02 : mode === 'magic' ? 0.14 : 0.06, 0.5,
-      );
+      const depth = mode === 'treacle' ? 0.02
+                  : mode === 'magic'   ? 0.14
+                  : mode === 'gloria'  ? 0.10
+                  : 0.06;
+      this.melodyVibrato.depth.rampTo(depth, 0.5);
     }
   }
 

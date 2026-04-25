@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { TAU } from '@/config';
 
-export type NutType = 'normal' | 'magic' | 'treacle' | 'lantern' | 'firstaid';
+export type NutType = 'normal' | 'magic' | 'treacle' | 'lantern' | 'firstaid' | 'carrot';
 
 export class Nut extends Phaser.GameObjects.Container {
   public nutType: NutType;
@@ -31,6 +31,7 @@ export class Nut extends Phaser.GameObjects.Container {
       case 'treacle':  this.drawTreacle(g, frame); break;
       case 'lantern':  this.drawLantern(g, frame); break;
       case 'firstaid': this.drawFirstAid(g, frame); break;
+      case 'carrot':   this.drawCarrot(g, frame); break;
     }
   }
 
@@ -156,6 +157,49 @@ export class Nut extends Phaser.GameObjects.Container {
     g.fillRect(-6, -2, 12, 4); // horizontal
   }
 
+  private drawCarrot(g: Phaser.GameObjects.Graphics, frame: number) {
+    const bob = Math.sin(frame * 0.07 + this.phase) * 3;
+    const wiggle = Math.sin(frame * 0.09 + this.phase) * 0.08;
+    g.setPosition(0, bob);
+    g.setRotation(wiggle);
+
+    // Pulsing glow
+    const pulse = 0.6 + Math.sin(frame * 0.11) * 0.4;
+    g.fillStyle(0xff8a3c, 0.18 * pulse);
+    g.fillCircle(0, 0, 18);
+
+    // Carrot body — tapered orange triangle/ellipse
+    g.fillStyle(0xe8702a);
+    g.fillTriangle(-6, -4, 6, -4, 0, 14);
+    g.fillStyle(0xff8a3c);
+    g.fillTriangle(-5, -3, 5, -3, 0, 12);
+
+    // Highlight stripe
+    g.fillStyle(0xffb070, 0.6);
+    g.fillTriangle(-2, -3, 1, -3, -0.5, 11);
+
+    // Ridge lines
+    g.lineStyle(0.6, 0xc04018, 0.5);
+    g.lineBetween(-3, 0, -1.5, 8);
+    g.lineBetween( 3, 0,  1.5, 8);
+
+    // Top crown (where leaves attach)
+    g.fillStyle(0xb84818);
+    g.fillEllipse(0, -4, 12, 3);
+
+    // Leafy greens
+    g.fillStyle(0x2a8a20);
+    g.fillTriangle(-5, -4, -2, -13, -7, -10);
+    g.fillTriangle( 0, -4,  2, -14,  -3, -11);
+    g.fillTriangle( 4, -4,  6, -12,   1, -10);
+    g.fillStyle(0x4abc38, 0.7);
+    g.fillTriangle(-3, -5, -1, -12, -5,  -9);
+    g.fillTriangle( 1, -5,  3, -13,  -1, -10);
+    g.fillTriangle( 3, -5,  5, -11,   1,  -9);
+
+    g.setRotation(0);
+  }
+
   getPoints(): number {
     switch (this.nutType) {
       case 'normal':   return 10;
@@ -163,10 +207,13 @@ export class Nut extends Phaser.GameObjects.Container {
       case 'treacle':  return 5;
       case 'lantern':  return 15;
       case 'firstaid': return 20;
+      case 'carrot':   return 30;
     }
   }
 
   getHitRadius(): number {
-    return this.nutType === 'magic' ? 12 : 10;
+    if (this.nutType === 'magic')  return 12;
+    if (this.nutType === 'carrot') return 13;
+    return 10;
   }
 }

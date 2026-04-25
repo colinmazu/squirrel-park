@@ -71,6 +71,44 @@ export const TREACLE_PAD_CHORDS = [
   [N.G2, N.C3, N.F3],   // G7sus4 — suspended, leans back into the loop
 ];
 
+// "Gloria the Rabbit" theme — Laura-Branigan-inspired 80s anthem.
+// Distinctive features:
+//  - Iconic vocal-style "GLO-RI-AAAAH!" hook: low → high → held descent
+//  - Heavy syncopation with strong off-beat accents
+//  - Two iterations: Bar 1+2 in lower register, Bar 3+4 octave up for euphoria
+//  - Descending chromatic tail mirroring "you're always on the run now"
+export const MELODY_GLORIA = [
+  // Bar 1: GLO-RI-AAAAH!  (E up to A then held descent A→G→A→G)
+  N.E5, 0,    N.A5, N.A5, N.G5, N.A5, N.G5, 0,
+  // Bar 2: "you're always on the run now" — chromatic-ish descent
+  N.E5, N.F5, N.E5, N.D5, N.E5, N.C5, N.D5, 0,
+  // Bar 3: GLO-RI-AAAAH! octave up — euphoric peak
+  N.E6, 0,    N.A6, N.A6, N.G6, N.A6, N.G6, 0,
+  // Bar 4: anthemic descending finale
+  N.A5, N.G5, N.A5, N.F5, N.E5, N.D5, N.C5, 0,
+];
+
+// Gloria bass — pumping straight 8th-note Am-F-C-G with octave bounce.
+// This is the SIGNATURE 80s pop anthem bass: every 8th-note feels like a heartbeat.
+export const GLORIA_BASS_LINE = [
+  N.A2, N.A3, N.A2, N.A3, N.A2, N.A3, N.E2, N.E3,
+  N.F2, N.F3, N.F2, N.F3, N.G2, N.G3, N.G2, N.G3,
+];
+
+// Gloria perc — driving 80s rock beat (kick on 1+3+offbeats, snare on 2+4, busy hihats)
+export const GLORIA_PERC_PATTERN: (string | 0)[] = [
+  'K', 'H', 'H', 'K', 'S', 'H', 'K', 'H',
+  'K', 'H', 'H', 'K', 'S', 'H', 'K', 'S',
+];
+
+// Gloria pad chords — Am - F - C - G (vi-IV-I-V, the "axis" progression)
+export const GLORIA_PAD_CHORDS = [
+  [N.A2, N.C3, N.E3], [N.A2, N.C3, N.E3], // Am
+  [N.F2, N.A2, N.C3], [N.F2, N.A2, N.C3], // F
+  [N.C3, N.E3, N.G3], [N.C3, N.E3, N.G3], // C
+  [N.G2, N.B2, N.D3], [N.G2, N.B2, N.D3], // G
+];
+
 // Pad chords (I-V-IV-V in C), each lasts 2 steps
 export const PAD_CHORDS = [
   [N.C3, N.E3, N.G3],
